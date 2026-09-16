@@ -2843,37 +2843,28 @@ class Component extends DCLogic {
     sessionStorage.setItem(DROPBOX_ACCESS_STORE,d.access_token);if(d.refresh_token)localStorage.setItem(DROPBOX_REFRESH_STORE,d.refresh_token);
     sessionStorage.removeItem('nexo_dbx_pkce');history.replaceState({},document.title,DROPBOX_REDIRECT);return d.access_token;
   }
-  async function refreshDropboxToken(attempt=0){
+  async function refreshDropboxToken(){
     const refresh=localStorage.getItem(DROPBOX_REFRESH_STORE);if(!refresh)return '';
     const body=new URLSearchParams({refresh_token:refresh,grant_type:'refresh_token',client_id:DROPBOX_APP_KEY});
-    let r;
+    let r,d;
     try{
       r=await fetch('https://api.dropboxapi.com/oauth2/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
+      d=await r.json();
     }catch(err){
-      if(attempt<1){await new Promise(resolve=>setTimeout(resolve,450));return refreshDropboxToken(attempt+1)}
-      return '';
+      /* Falha de rede não revoga a autorização já concedida. */
+      throw Object.assign(new Error('Não foi possível renovar a conexão com o Dropbox.'),{code:'DROPBOX_TEMPORARY',cause:err});
     }
-    let d={};try{d=await r.json()}catch{}
     if(!r.ok){
-      sessionStorage.removeItem(DROPBOX_ACCESS_STORE);
-      const detail=String(d.error_description||d.error||'').toLowerCase();
-      const invalidGrant=detail.includes('invalid_grant')||detail.includes('revoked')||detail.includes('expired');
-      if(invalidGrant)localStorage.removeItem(DROPBOX_REFRESH_STORE);
-      else if((r.status===429||r.status>=500)&&attempt<1){await new Promise(resolve=>setTimeout(resolve,450));return refreshDropboxToken(attempt+1)}
-      return '';
+      const invalid=String(d&&d.error||'').toLowerCase()==='invalid_grant';
+      if(invalid){localStorage.removeItem(DROPBOX_REFRESH_STORE);sessionStorage.removeItem(DROPBOX_ACCESS_STORE);return ''}
+      throw Object.assign(new Error((d&&(d.error_description||d.error))||'Falha temporária ao renovar o Dropbox.'),{code:'DROPBOX_TEMPORARY'});
     }
-    if(!d.access_token)return '';
     sessionStorage.setItem(DROPBOX_ACCESS_STORE,d.access_token);return d.access_token;
   }
   async function dropboxToken(){return sessionStorage.getItem(DROPBOX_ACCESS_STORE)||await refreshDropboxToken()}
-  async function downloadDropboxData(retry401=true){
-    let token=await dropboxToken();if(!token)throw Object.assign(new Error('DROPBOX_NOT_CONNECTED'),{code:'DROPBOX_NOT_CONNECTED'});
-    let r=await fetch('https://content.dropboxapi.com/2/files/download',{method:'POST',headers:{Authorization:'Bearer '+token,'Dropbox-API-Arg':JSON.stringify({path:DROPBOX_DATA_FILE})}});
-    if(r.status===401&&retry401){
-      sessionStorage.removeItem(DROPBOX_ACCESS_STORE);
-      token=await refreshDropboxToken();
-      if(token)return downloadDropboxData(false);
-    }
+  async function downloadDropboxData(){
+    const token=await dropboxToken();if(!token)throw Object.assign(new Error('DROPBOX_NOT_CONNECTED'),{code:'DROPBOX_NOT_CONNECTED'});
+    const r=await fetch('https://content.dropboxapi.com/2/files/download',{method:'POST',headers:{Authorization:'Bearer '+token,'Dropbox-API-Arg':JSON.stringify({path:DROPBOX_DATA_FILE})}});
     if(r.status===409){const t=await r.text();if(t.includes('not_found'))throw Object.assign(new Error('BASE_NOT_FOUND'),{code:'BASE_NOT_FOUND'});throw new Error(t)}
     if(r.status===401){sessionStorage.removeItem(DROPBOX_ACCESS_STORE);throw Object.assign(new Error('DROPBOX_NOT_CONNECTED'),{code:'DROPBOX_NOT_CONNECTED'});}
     if(!r.ok)throw new Error(await r.text());
@@ -3645,7 +3636,26 @@ function captureUIState(){
   $('#saveWithDataBtn').onclick=()=>downloadRaw('nexo-dados-backup-'+safeFileDate()+'.json',JSON.stringify(currentDropboxPayload(),null,2),'application/json;charset=utf-8');
   $('#saveEmptyBtn').onclick=()=>{if(confirm('Baixar uma cópia limpa da interface do NEXO, sem dados pessoais embutidos?'))downloadHTML(false)};
   $('#printBtn').onclick=printActive;
-  $('#exitAppBtn').onclick=()=>{closeActionsMenu();try{window.open('','_self');window.close()}catch(e){}setTimeout(()=>{if(!window.closed){try{location.replace('about:blank')}catch(e){}}},180)};
+  function exitNexo(){
+    closeActionsMenu();
+    /* Em janelas/app-mode o navegador pode permitir fechamento programático. */
+    try{window.close()}catch(e){}
+    /* Em Chrome/iPhone o fechamento pode ser bloqueado. Nunca cair em about:blank:
+       volta para o gate de acesso mantendo a autorização do Dropbox. */
+    setTimeout(()=>{
+      if(window.closed)return;
+      try{
+        resetAuthPasswordVisibility();
+        const app=document.querySelector('.app');if(app)app.style.visibility='hidden';
+        document.body.classList.add('auth-locked');
+        const dbx=document.getElementById('dropboxGate');if(dbx)dbx.hidden=true;
+        const gate=document.getElementById('authGate');if(gate)gate.hidden=false;
+        showAuthMode();
+        const login=document.getElementById('authLogin');if(login)login.value='';
+      }catch(e){location.reload()}
+    },180);
+  }
+  $('#exitAppBtn').onclick=exitNexo;
   $('#modelCsvBtn').onclick=()=>download('modelo_lancamentos.csv',['id;descricao;centro_custo;favorecido;tipo;valor;data_vencimento;data_pagamento',`1;SALÁRIO;RECEITAS;EMPRESA;RECEITA;10000,00;05/01/${now.getFullYear()};`, `2;CONDOMÍNIO;CASA;CONDOMÍNIO;DESPESA;1500,00;10/01/${now.getFullYear()};`].join('\n'));
   $('#exportCsvBtn').onclick=()=>{const h=['id','descricao','centro_custo','favorecido','tipo','valor','data_vencimento','data_pagamento']; const lines=[h.join(';'),...entries.map(e=>h.map(k=>csvEscape(k==='valor'?e[k].toFixed(2).replace('.',','):e[k]||'')).join(';'))];download('lancamentos_completos.csv',lines.join('\n'))}
   $('#importBtn').onclick=()=>$('#fileInput').click(); $('#fileInput').onchange=async ev=>{
