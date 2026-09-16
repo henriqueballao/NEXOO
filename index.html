@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 
-<html style="--monthly-table-width: 100%;"><head><style>
+<html style="--monthly-table-width: 100%;"><head>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0"><style>
     .sc-placeholder{background:color-mix(in srgb,currentColor 8%,transparent);
       border:1px solid color-mix(in srgb,currentColor 50%,transparent);
       border-radius:2px;box-sizing:border-box;overflow:hidden}
@@ -2443,7 +2446,7 @@ nav .actions-menu{margin-top:auto!important}
 @media(max-width:700px){.dropbox-sync-status{margin-left:8px;margin-right:8px}}
 </style><!-- NEXO Dropbox Build 1 -->
 </head>
-<body class="">
+<body data-nexo-build="20260916-SELFHEAL-01" class="">
 <div id="dc-root"><div class="sc-host" data-sc-name="NEXO"><div data-dc-tpl="5" id="familia-app-mount" style="min-height: 100vh; background: rgb(21, 36, 32);">
 <div class="auth-gate dropbox-gate" hidden="" id="dropboxGate">
 <div class="auth-card dropbox-card">
@@ -2766,6 +2769,7 @@ class Component extends DCLogic {
   let embedded={entries:[],subscriptions:[],controlData:[],uiState:{},auth:null,bankState:null};
   try{embedded=JSON.parse(document.getElementById('embeddedData')?.textContent||'{}')||embedded}catch{}
   const now=new Date(); let selectedYear=now.getFullYear(); let payingId=null; let editingStreamId=null; let editingEntryId=null; let editingDataId=null;
+  const NEXO_BUILD='20260916-SELFHEAL-01';
   const DROPBOX_APP_KEY='hgpycye1ooqazt7';
   const DROPBOX_REDIRECT='https://henriqueballao.github.io/NEXOO/';
   const DROPBOX_DATA_FILE='/nexo-dados-v2.json';
@@ -2892,13 +2896,14 @@ class Component extends DCLogic {
   async function exchangeDropboxCode(code,state=''){
     const stateKey=state?'nexo_dbx_pkce_'+state:'';
     const verifier=(stateKey&&localStorage.getItem(stateKey))||sessionStorage.getItem('nexo_dbx_pkce')||(state?await dbxVaultGet('pkce_'+state):'');
-    if(!verifier)throw new Error('Autorização expirada. Conecte o Dropbox novamente.');
+    if(!verifier)throw Object.assign(new Error('Callback OAuth sem PKCE válido.'),{code:'DROPBOX_PKCE_MISSING'});
     const body=new URLSearchParams({code,grant_type:'authorization_code',client_id:DROPBOX_APP_KEY,redirect_uri:DROPBOX_REDIRECT,code_verifier:verifier});
     const r=await fetch('https://api.dropboxapi.com/oauth2/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
     const d=await r.json();if(!r.ok)throw new Error(d.error_description||d.error||'Falha ao autorizar Dropbox.');
     await persistDropboxTokens(d.access_token,d.refresh_token||'');
     if(stateKey)localStorage.removeItem(stateKey);sessionStorage.removeItem('nexo_dbx_pkce');if(state)await dbxVaultDel('pkce_'+state);await dbxVaultDel('oauth_state');
     try{localStorage.setItem('nexo_dbx_connected_at',String(Date.now()))}catch{}
+    try{sessionStorage.removeItem('nexo_dbx_auto_oauth_attempt')}catch{}
     history.replaceState({},document.title,DROPBOX_REDIRECT);return d.access_token;
   }
   async function refreshDropboxToken(){
@@ -2975,10 +2980,24 @@ class Component extends DCLogic {
     const boot=document.getElementById('__familia_boot_mask');if(boot)boot.remove();
   }
   function hideDropboxGate(){const gate=document.getElementById('dropboxGate');if(gate)gate.hidden=true}
+  function clearDropboxCallbackUrl(){
+    try{history.replaceState({},document.title,DROPBOX_REDIRECT)}catch{}
+  }
+  async function autoReconnectDropbox(){
+    let attempted='';
+    try{attempted=sessionStorage.getItem('nexo_dbx_auto_oauth_attempt')||''}catch{}
+    if(attempted==='1')return false;
+    try{sessionStorage.setItem('nexo_dbx_auto_oauth_attempt','1')}catch{}
+    await connectDropbox();
+    return true;
+  }
   async function bootstrapNexo(){
     try{
       setDropboxSyncStatus('Dropbox · conectando','busy');
-      const params=new URLSearchParams(location.search),oauthError=params.get('error_description')||params.get('error');if(oauthError)throw new Error(oauthError);
+      const params=new URLSearchParams(location.search);
+      const oauthError=params.get('error_description')||params.get('error');
+      if(oauthError){clearDropboxCallbackUrl();throw Object.assign(new Error(oauthError),{code:'DROPBOX_OAUTH_ERROR'})}
+
       if(params.get('code')){
         const returnedState=params.get('state')||'';
         const expectedState=localStorage.getItem('nexo_dbx_oauth_state')||await dbxVaultGet('oauth_state')||'';
@@ -2987,40 +3006,44 @@ class Component extends DCLogic {
 
         if(verifier){
           if(expectedState && returnedState && expectedState!==returnedState){
-            throw new Error('Retorno de autorização inválido. Conecte o Dropbox novamente.');
+            clearDropboxCallbackUrl();
+            throw Object.assign(new Error('Retorno de autorização inválido.'),{code:'DROPBOX_OAUTH_STATE'});
           }
           await exchangeDropboxCode(params.get('code'),returnedState);
           try{localStorage.removeItem('nexo_dbx_oauth_state')}catch{}
         }else{
-          /* O Chrome em modo app pode reabrir a última URL visitada, inclusive o callback
-             OAuth já consumido. Código de autorização é de uso único; nesse caso não devemos
-             tentar trocá-lo novamente. Se já existe credencial persistida, limpamos o callback
-             antigo e seguimos normalmente. */
-          let savedAccess='';
-          try{savedAccess=sessionStorage.getItem(DROPBOX_ACCESS_STORE)||localStorage.getItem(DROPBOX_ACCESS_PERSIST)||''}catch{}
-          if(!savedAccess)savedAccess=await dbxVaultGet('access_token');
-          const savedRefresh=await persistentRefreshToken();
-          if(savedAccess||savedRefresh){
-            try{history.replaceState({},document.title,DROPBOX_REDIRECT)}catch{}
-            try{localStorage.removeItem('nexo_dbx_oauth_state')}catch{}
-            if(returnedState){try{localStorage.removeItem(stateKey)}catch{};await dbxVaultDel('pkce_'+returnedState)}
-            try{sessionStorage.removeItem('nexo_dbx_pkce')}catch{}
-            await dbxVaultDel('oauth_state');
-          }else{
-            try{history.replaceState({},document.title,DROPBOX_REDIRECT)}catch{}
-            throw Object.assign(new Error('Conecte seu Dropbox para carregar a base do NEXO.'),{code:'DROPBOX_NOT_CONNECTED'});
-          }
+          /* Callback antigo/reaberto pelo Chrome: nunca tentar reutilizar um authorization code. */
+          clearDropboxCallbackUrl();
+          try{localStorage.removeItem('nexo_dbx_oauth_state')}catch{}
+          if(returnedState){try{localStorage.removeItem(stateKey)}catch{};await dbxVaultDel('pkce_'+returnedState)}
+          try{sessionStorage.removeItem('nexo_dbx_pkce')}catch{}
+          await dbxVaultDel('oauth_state');
         }
-        /* Callback OAuth tratado de forma idempotente, inclusive após fechar e reabrir o app. */
       }
+
       const token=await dropboxToken();
-      if(!token){showDropboxGate('Conecte seu Dropbox para carregar a base do NEXO.');setDropboxSyncStatus('Dropbox · desconectado','err');return}
-      const data=await downloadDropboxData();applyDropboxData(data);dropboxReady=true;hideDropboxGate();setDropboxSyncStatus('Dropbox · sincronizado','ok');
+      if(!token){
+        /* Se o Chrome encerrou/limpou o armazenamento, refaz OAuth automaticamente uma única vez. */
+        if(await autoReconnectDropbox())return;
+        showDropboxGate('Não foi possível restaurar a conexão com o Dropbox.','Clique em Conectar Dropbox para autorizar novamente.');
+        setDropboxSyncStatus('Dropbox · desconectado','err');
+        return;
+      }
+
+      const data=await downloadDropboxData();
+      applyDropboxData(data);dropboxReady=true;hideDropboxGate();
+      try{sessionStorage.removeItem('nexo_dbx_auto_oauth_attempt')}catch{}
+      setDropboxSyncStatus('Dropbox · sincronizado','ok');
       render();applyCurrentPeriodDefaults();restoreUIState(embedded.uiState||{});initAuth();
-    }catch(err){console.error('NEXO bootstrap',err);setDropboxSyncStatus('Dropbox · atenção','err');
-      if(err.code==='BASE_NOT_FOUND')showDropboxGate('A conexão está funcionando, mas a base do NEXO ainda não existe no Dropbox.','Envie o arquivo nexo-dados.json para Apps/NEXOO e clique em Tentar novamente.');
-      else if(err.code==='BASE_INVALID')showDropboxGate('O arquivo nexo-dados.json encontrado não é uma base válida do NEXO.','Substitua o arquivo de teste pelo nexo-dados.json que acompanha esta versão.');
-      else showDropboxGate('Não foi possível carregar os dados do Dropbox.',err.message||'Erro de conexão.');
+    }catch(err){
+      console.error('NEXO bootstrap',NEXO_BUILD,err);
+      setDropboxSyncStatus('Dropbox · atenção','err');
+      if(err.code==='BASE_NOT_FOUND')showDropboxGate('A conexão está funcionando, mas a base do NEXO ainda não existe no Dropbox.','Envie o arquivo nexo-dados-v2.json para Apps/NEXOO e clique em Tentar novamente.');
+      else if(err.code==='BASE_INVALID')showDropboxGate('O arquivo nexo-dados-v2.json encontrado não é uma base válida do NEXO.','Substitua somente o arquivo de dados por uma cópia válida.');
+      else if(err.code==='DROPBOX_NOT_CONNECTED'||err.code==='DROPBOX_PKCE_MISSING'){
+        try{if(await autoReconnectDropbox())return}catch(reErr){console.error('Dropbox auto reconnect',reErr)}
+        showDropboxGate('Não foi possível restaurar a conexão com o Dropbox.',err.message||'Autorize novamente.');
+      }else showDropboxGate('Não foi possível carregar os dados do Dropbox.',err.message||'Erro de conexão.');
     }
   }
   
