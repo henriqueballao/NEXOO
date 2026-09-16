@@ -2493,7 +2493,6 @@ nav .actions-menu{margin-top:auto!important}
 </svg>
 <span class="nexo-logo-word">NEXO</span>
 </div>
-<div class="dropbox-sync-status no-print" id="dropboxSyncStatus" title="Status da sincronização com Dropbox">Dropbox · conectando</div>
 <button class="tab active" data-tab="overview">Visão Geral</button>
 <button class="tab" data-tab="daily">Fluxo Diário</button>
 <button class="tab" data-tab="monthly">Fluxo Mensal</button>
@@ -2862,8 +2861,7 @@ class Component extends DCLogic {
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
   function load(k,d){try{return JSON.parse(localStorage.getItem(k))||d}catch{return d}}
   function setDropboxSyncStatus(text,kind=''){
-    const el=document.getElementById('dropboxSyncStatus');if(!el)return;
-    el.textContent=text;el.className='dropbox-sync-status no-print'+(kind?' '+kind:'');
+    /* Sincronização do Dropbox permanece silenciosa; sem indicador no sidebar. */
   }
   function currentDropboxPayload(){
     return {schemaVersion:1,source:'NEXO',updatedAt:new Date().toISOString(),entries,subscriptions,controlData,uiState:captureUIState(),auth,bankState};
@@ -3075,9 +3073,10 @@ class Component extends DCLogic {
   }
   function unlockApp(){
     resetAuthPasswordVisibility();
-    $('#authGate').hidden=true;
+    const gate=$('#authGate');
+    if(gate){gate.hidden=true;gate.style.display='';gate.style.visibility='';gate.style.opacity='';gate.style.pointerEvents='';gate.style.zIndex=''}
     document.body.classList.remove('auth-locked');
-    const app=document.querySelector('.app');if(app)app.style.visibility='visible';
+    const app=document.querySelector('.app');if(app){app.style.visibility='visible';app.style.pointerEvents=''}
     const boot=document.getElementById('__familia_boot_mask');if(boot)boot.remove();
     const tab=[...document.querySelectorAll('.tab')].find(x=>x.dataset.tab==='overview');
     if(tab){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.section').forEach(x=>x.classList.remove('active'));tab.classList.add('active');document.getElementById('overview')?.classList.add('active');updatePageTitle('overview')}
@@ -3763,24 +3762,46 @@ function captureUIState(){
   $('#saveEmptyBtn').onclick=()=>{if(confirm('Baixar uma cópia limpa da interface do NEXO, sem dados pessoais embutidos?'))downloadHTML(false)};
   $('#printBtn').onclick=printActive;
   function exitNexo(){
+    /* Sair encerra somente a sessão visual do NEXO; Dropbox permanece conectado. */
     closeActionsMenu();
-    /* Sair = encerrar somente a sessão do NEXO. Nunca fechar a janela/app. */
     try{
       resetAuthPasswordVisibility();
-      const app=document.querySelector('.app');if(app)app.style.visibility='hidden';
+      const app=document.querySelector('.app');
+      if(app){
+        app.style.visibility='hidden';
+        app.style.pointerEvents='none';
+      }
+      const dbx=document.getElementById('dropboxGate');
+      if(dbx){dbx.hidden=true;dbx.style.display='none'}
       document.body.classList.add('auth-locked');
-      const dbx=document.getElementById('dropboxGate');if(dbx)dbx.hidden=true;
-      const gate=document.getElementById('authGate');if(gate)gate.hidden=false;
+      const gate=document.getElementById('authGate');
+      if(gate){
+        gate.hidden=false;
+        gate.style.display='flex';
+        gate.style.visibility='visible';
+        gate.style.opacity='1';
+        gate.style.pointerEvents='auto';
+        gate.style.zIndex='99999';
+      }
       showAuthMode();
       const login=document.getElementById('authLogin');if(login)login.value='';
       const password=document.getElementById('authPassword');if(password)password.value='';
       const confirm=document.getElementById('authConfirm');if(confirm)confirm.value='';
+      requestAnimationFrame(()=>document.getElementById('authLogin')?.focus());
     }catch(e){
       console.error('NEXO logout',e);
-      initAuth();
+      try{initAuth()}catch(_){}
     }
   }
-  $('#exitAppBtn').onclick=exitNexo;
+  /* Captura o clique mesmo no modo Chrome --app e impede qualquer fechamento/navegação concorrente. */
+  document.addEventListener('click',function(e){
+    const btn=e.target.closest&&e.target.closest('#exitAppBtn');
+    if(!btn)return;
+    e.preventDefault();
+    e.stopPropagation();
+    if(e.stopImmediatePropagation)e.stopImmediatePropagation();
+    exitNexo();
+  },true);
   $('#modelCsvBtn').onclick=()=>download('modelo_lancamentos.csv',['id;descricao;centro_custo;favorecido;tipo;valor;data_vencimento;data_pagamento',`1;SALÁRIO;RECEITAS;EMPRESA;RECEITA;10000,00;05/01/${now.getFullYear()};`, `2;CONDOMÍNIO;CASA;CONDOMÍNIO;DESPESA;1500,00;10/01/${now.getFullYear()};`].join('\n'));
   $('#exportCsvBtn').onclick=()=>{const h=['id','descricao','centro_custo','favorecido','tipo','valor','data_vencimento','data_pagamento']; const lines=[h.join(';'),...entries.map(e=>h.map(k=>csvEscape(k==='valor'?e[k].toFixed(2).replace('.',','):e[k]||'')).join(';'))];download('lancamentos_completos.csv',lines.join('\n'))}
   $('#importBtn').onclick=()=>$('#fileInput').click(); $('#fileInput').onchange=async ev=>{
