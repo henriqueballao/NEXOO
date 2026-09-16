@@ -2773,7 +2773,31 @@ class Component extends DCLogic {
   const DROPBOX_ACCESS_STORE='nexo_dropbox_access_v1';
   const DROPBOX_ACCESS_PERSIST='nexo_dropbox_access_persist_v1';
   const DROPBOX_REFRESH_COOKIE='nexo_dbx_refresh_v1';
+  const DROPBOX_VAULT_DB='nexo-secure-store-v1';
+  const DROPBOX_VAULT_STORE='dropbox';
   let dropboxReady=false, dropboxRev='', dropboxSaveTimer=null, dropboxSaveRunning=false, dropboxSaveAgain=false;
+
+  function dbxVaultOpen(){
+    return new Promise((resolve,reject)=>{
+      try{
+        const req=indexedDB.open(DROPBOX_VAULT_DB,1);
+        req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(DROPBOX_VAULT_STORE))db.createObjectStore(DROPBOX_VAULT_STORE)};
+        req.onsuccess=()=>resolve(req.result);
+        req.onerror=()=>reject(req.error||new Error('IndexedDB indisponível'));
+      }catch(err){reject(err)}
+    });
+  }
+  async function dbxVaultGet(key){
+    try{const db=await dbxVaultOpen();return await new Promise((resolve,reject)=>{const tx=db.transaction(DROPBOX_VAULT_STORE,'readonly');const r=tx.objectStore(DROPBOX_VAULT_STORE).get(key);r.onsuccess=()=>resolve(r.result||'');r.onerror=()=>reject(r.error)});}catch{return ''}
+  }
+  async function dbxVaultSet(key,value){
+    if(!value)return;
+    try{const db=await dbxVaultOpen();await new Promise((resolve,reject)=>{const tx=db.transaction(DROPBOX_VAULT_STORE,'readwrite');tx.objectStore(DROPBOX_VAULT_STORE).put(value,key);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error)});}catch{}
+  }
+  async function dbxVaultDel(key){
+    try{const db=await dbxVaultOpen();await new Promise((resolve,reject)=>{const tx=db.transaction(DROPBOX_VAULT_STORE,'readwrite');tx.objectStore(DROPBOX_VAULT_STORE).delete(key);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error)});}catch{}
+  }
+  async function requestPersistentStorage(){try{if(navigator.storage&&navigator.storage.persist)await navigator.storage.persist()}catch{}}
 
   function setPersistentCookie(name,value,days=3650){
     try{document.cookie=name+'='+encodeURIComponent(value||'')+'; Max-Age='+(days*86400)+'; Path=/NEXOO/; SameSite=Lax; Secure'}catch{}
@@ -2781,16 +2805,18 @@ class Component extends DCLogic {
   function getPersistentCookie(name){
     try{const p=document.cookie.split('; ').find(x=>x.startsWith(name+'='));return p?decodeURIComponent(p.slice(name.length+1)):''}catch{return ''}
   }
-  function persistentRefreshToken(){
+  async function persistentRefreshToken(){
     let v='';
     try{v=localStorage.getItem(DROPBOX_REFRESH_STORE)||''}catch{}
     if(!v)v=getPersistentCookie(DROPBOX_REFRESH_COOKIE);
-    if(v){try{localStorage.setItem(DROPBOX_REFRESH_STORE,v)}catch{}}
+    if(!v)v=await dbxVaultGet('refresh_token');
+    if(v){try{localStorage.setItem(DROPBOX_REFRESH_STORE,v)}catch{};setPersistentCookie(DROPBOX_REFRESH_COOKIE,v);await dbxVaultSet('refresh_token',v)}
     return v;
   }
-  function persistDropboxTokens(access,refresh){
-    if(access){try{sessionStorage.setItem(DROPBOX_ACCESS_STORE,access);localStorage.setItem(DROPBOX_ACCESS_PERSIST,access)}catch{}}
-    if(refresh){try{localStorage.setItem(DROPBOX_REFRESH_STORE,refresh)}catch{};setPersistentCookie(DROPBOX_REFRESH_COOKIE,refresh)}
+  async function persistDropboxTokens(access,refresh){
+    if(access){try{sessionStorage.setItem(DROPBOX_ACCESS_STORE,access);localStorage.setItem(DROPBOX_ACCESS_PERSIST,access)}catch{};await dbxVaultSet('access_token',access)}
+    if(refresh){try{localStorage.setItem(DROPBOX_REFRESH_STORE,refresh)}catch{};setPersistentCookie(DROPBOX_REFRESH_COOKIE,refresh);await dbxVaultSet('refresh_token',refresh)}
+    await requestPersistentStorage();
   }
 
   const hasLocalAuth=localStorage.getItem(AUTHSTORE)!==null;
@@ -2854,6 +2880,8 @@ class Component extends DCLogic {
     localStorage.setItem('nexo_dbx_pkce_'+state,verifier);
     localStorage.setItem('nexo_dbx_oauth_state',state);
     sessionStorage.setItem('nexo_dbx_pkce',verifier);
+    await dbxVaultSet('oauth_state',state);
+    await dbxVaultSet('pkce_'+state,verifier);
     const u=new URL('https://www.dropbox.com/oauth2/authorize');
     u.searchParams.set('client_id',DROPBOX_APP_KEY);u.searchParams.set('response_type','code');u.searchParams.set('redirect_uri',DROPBOX_REDIRECT);
     u.searchParams.set('code_challenge',challenge);u.searchParams.set('code_challenge_method','S256');u.searchParams.set('token_access_type','offline');
@@ -2863,18 +2891,18 @@ class Component extends DCLogic {
   }
   async function exchangeDropboxCode(code,state=''){
     const stateKey=state?'nexo_dbx_pkce_'+state:'';
-    const verifier=(stateKey&&localStorage.getItem(stateKey))||sessionStorage.getItem('nexo_dbx_pkce');
+    const verifier=(stateKey&&localStorage.getItem(stateKey))||sessionStorage.getItem('nexo_dbx_pkce')||(state?await dbxVaultGet('pkce_'+state):'');
     if(!verifier)throw new Error('Autorização expirada. Conecte o Dropbox novamente.');
     const body=new URLSearchParams({code,grant_type:'authorization_code',client_id:DROPBOX_APP_KEY,redirect_uri:DROPBOX_REDIRECT,code_verifier:verifier});
     const r=await fetch('https://api.dropboxapi.com/oauth2/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
     const d=await r.json();if(!r.ok)throw new Error(d.error_description||d.error||'Falha ao autorizar Dropbox.');
-    persistDropboxTokens(d.access_token,d.refresh_token||'');
-    if(stateKey)localStorage.removeItem(stateKey);sessionStorage.removeItem('nexo_dbx_pkce');
+    await persistDropboxTokens(d.access_token,d.refresh_token||'');
+    if(stateKey)localStorage.removeItem(stateKey);sessionStorage.removeItem('nexo_dbx_pkce');if(state)await dbxVaultDel('pkce_'+state);await dbxVaultDel('oauth_state');
     try{localStorage.setItem('nexo_dbx_connected_at',String(Date.now()))}catch{}
     history.replaceState({},document.title,DROPBOX_REDIRECT);return d.access_token;
   }
   async function refreshDropboxToken(){
-    const refresh=persistentRefreshToken();if(!refresh)return '';
+    const refresh=await persistentRefreshToken();if(!refresh)return '';
     const body=new URLSearchParams({refresh_token:refresh,grant_type:'refresh_token',client_id:DROPBOX_APP_KEY});
     let r,d;
     try{
@@ -2890,23 +2918,25 @@ class Component extends DCLogic {
         /* Não destrói imediatamente a autorização persistida por uma resposta isolada.
            Limpa apenas o access token e mantém o refresh para nova tentativa na próxima abertura. */
         try{sessionStorage.removeItem(DROPBOX_ACCESS_STORE);localStorage.removeItem(DROPBOX_ACCESS_PERSIST)}catch{}
+        await dbxVaultDel('access_token');
         return '';
       }
       throw Object.assign(new Error((d&&(d.error_description||d.error))||'Falha temporária ao renovar o Dropbox.'),{code:'DROPBOX_TEMPORARY'});
     }
-    persistDropboxTokens(d.access_token,'');return d.access_token;
+    await persistDropboxTokens(d.access_token,'');return d.access_token;
   }
   async function dropboxToken(){
     let t='';
     try{t=sessionStorage.getItem(DROPBOX_ACCESS_STORE)||localStorage.getItem(DROPBOX_ACCESS_PERSIST)||''}catch{}
-    if(t){try{sessionStorage.setItem(DROPBOX_ACCESS_STORE,t)}catch{};return t}
+    if(!t)t=await dbxVaultGet('access_token');
+    if(t){try{sessionStorage.setItem(DROPBOX_ACCESS_STORE,t);localStorage.setItem(DROPBOX_ACCESS_PERSIST,t)}catch{};await dbxVaultSet('access_token',t);return t}
     return await refreshDropboxToken();
   }
   async function downloadDropboxData(){
     const token=await dropboxToken();if(!token)throw Object.assign(new Error('DROPBOX_NOT_CONNECTED'),{code:'DROPBOX_NOT_CONNECTED'});
     const r=await fetch('https://content.dropboxapi.com/2/files/download',{method:'POST',headers:{Authorization:'Bearer '+token,'Dropbox-API-Arg':JSON.stringify({path:DROPBOX_DATA_FILE})}});
     if(r.status===409){const t=await r.text();if(t.includes('not_found'))throw Object.assign(new Error('BASE_NOT_FOUND'),{code:'BASE_NOT_FOUND'});throw new Error(t)}
-    if(r.status===401){try{sessionStorage.removeItem(DROPBOX_ACCESS_STORE);localStorage.removeItem(DROPBOX_ACCESS_PERSIST)}catch{};const rt=await refreshDropboxToken().catch(()=> '');if(rt)return downloadDropboxData();throw Object.assign(new Error('DROPBOX_NOT_CONNECTED'),{code:'DROPBOX_NOT_CONNECTED'});}
+    if(r.status===401){try{sessionStorage.removeItem(DROPBOX_ACCESS_STORE);localStorage.removeItem(DROPBOX_ACCESS_PERSIST)}catch{};await dbxVaultDel('access_token');const rt=await refreshDropboxToken().catch(()=> '');if(rt)return downloadDropboxData();throw Object.assign(new Error('DROPBOX_NOT_CONNECTED'),{code:'DROPBOX_NOT_CONNECTED'});}
     if(!r.ok)throw new Error(await r.text());
     try{const meta=JSON.parse(r.headers.get('Dropbox-API-Result')||'{}');dropboxRev=meta.rev||''}catch{}
     const data=await r.json();
@@ -2951,7 +2981,7 @@ class Component extends DCLogic {
       const params=new URLSearchParams(location.search),oauthError=params.get('error_description')||params.get('error');if(oauthError)throw new Error(oauthError);
       if(params.get('code')){
         const returnedState=params.get('state')||'';
-        const expectedState=localStorage.getItem('nexo_dbx_oauth_state')||'';
+        const expectedState=localStorage.getItem('nexo_dbx_oauth_state')||await dbxVaultGet('oauth_state')||'';
         if(expectedState && returnedState && expectedState!==returnedState){
           throw new Error('Retorno de autorização inválido. Conecte o Dropbox novamente.');
         }
