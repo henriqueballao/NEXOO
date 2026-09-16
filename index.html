@@ -1696,6 +1696,13 @@ header .brand p{display:none!important}
   }
 }
 
+
+/* NEXO — AJUSTES VISUAIS DA SIDEBAR */
+.actions-label{display:inline-flex;align-items:center;gap:8px;min-width:0}
+.actions-icon{width:15px;height:15px;flex:0 0 15px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;opacity:.8}
+.sidebar-copyright{margin:10px 10px 0;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);color:#789087;font-size:8.5px;line-height:1.45;font-weight:500}
+@media(max-width:900px){.sidebar-copyright{display:none}}
+
 /* NEXO — RESUMO DO MES NA SIDEBAR */
 .sidebar-summary{
   margin:18px 0 14px;
@@ -2528,11 +2535,11 @@ nav .actions-menu{margin-top:auto!important}
 </div>
 <div class="actions-menu no-print">
 <button aria-expanded="false" aria-haspopup="true" class="btn menu-trigger" id="actionsMenuBtn" type="button">
-<span>Ações</span><span aria-hidden="true" class="menu-caret">⌄</span>
+<span class="actions-label"><svg aria-hidden="true" class="actions-icon" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M8 14v6"></path></svg><span>Ações</span></span><span aria-hidden="true" class="menu-caret">⌄</span>
 </button>
 <div class="action-menu" id="actionsMenu" role="menu">
 <div class="menu-note">Dados</div>
-<button id="saveBtn" role="menuitem" type="button">Sincronizar Dropbox</button>
+<button id="saveBtn" role="menuitem" type="button">Salvar</button>
 <button id="saveWithDataBtn" role="menuitem" type="button">Baixar backup dos dados</button>
 <button id="saveEmptyBtn" role="menuitem" type="button">Baixar HTML limpo</button>
 <button id="printBtn" role="menuitem" type="button">Imprimir / PDF</button>
@@ -2546,6 +2553,7 @@ nav .actions-menu{margin-top:auto!important}
 <button class="danger" id="exitAppBtn" role="menuitem" type="button">Sair</button>
 </div>
 </div>
+<div class="sidebar-copyright">© 2026 NEXO — Controle Pessoal.<br>Todos os direitos reservados.</div>
 </nav>
 <section class="section active" id="overview">
 <div class="overview-toolbar no-print">
