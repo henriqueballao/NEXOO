@@ -2434,7 +2434,7 @@ nav .actions-menu{margin-top:auto!important}
 .dropbox-sync-status.busy{color:#f0cf7b;background:rgba(216,163,38,.10)}
 .dropbox-sync-status.err{color:#ff9a8f;background:rgba(202,77,64,.12)}
 @media(max-width:700px){.dropbox-sync-status{margin-left:8px;margin-right:8px}}
-</style><!-- NEXO Dropbox Build 1 -->
+</style><!-- NEXO Dropbox Build 2 - auth migration v1 -->
 </head>
 <body class="">
 <div id="dc-root"><div class="sc-host" data-sc-name="NEXO"><div data-dc-tpl="5" id="familia-app-mount" style="min-height: 100vh; background: rgb(21, 36, 32);">
@@ -2808,7 +2808,7 @@ class Component extends DCLogic {
     el.textContent=text;el.className='dropbox-sync-status no-print'+(kind?' '+kind:'');
   }
   function currentDropboxPayload(){
-    return {schemaVersion:1,source:'NEXO',updatedAt:new Date().toISOString(),entries,subscriptions,controlData,uiState:captureUIState(),auth,bankState};
+    return {schemaVersion:1,source:'NEXO',updatedAt:new Date().toISOString(),entries,subscriptions,controlData,uiState:captureUIState(),auth,bankState,meta:{authMigration:'github-dropbox-v1'}};
   }
   function save(){
     if(auth)localStorage.setItem(AUTHSTORE,JSON.stringify(auth));
@@ -2893,7 +2893,21 @@ class Component extends DCLogic {
       if(params.get('code'))await exchangeDropboxCode(params.get('code'));
       const token=await dropboxToken();
       if(!token){showDropboxGate('Conecte seu Dropbox para carregar a base do NEXO.');setDropboxSyncStatus('Dropbox · desconectado','err');return}
-      const data=await downloadDropboxData();applyDropboxData(data);dropboxReady=true;hideDropboxGate();setDropboxSyncStatus('Dropbox · sincronizado','ok');
+      const data=await downloadDropboxData();
+      data.meta=(data.meta&&typeof data.meta==='object')?data.meta:{};
+      const needsWebAuthMigration=data.meta.authMigration!=='github-dropbox-v1';
+      if(needsWebAuthMigration){
+        data.auth=null;
+        data.meta.authMigration='github-dropbox-v1';
+      }
+      applyDropboxData(data);
+      dropboxReady=true;
+      hideDropboxGate();
+      setDropboxSyncStatus('Dropbox · sincronizado','ok');
+      if(needsWebAuthMigration){
+        localStorage.removeItem(AUTHSTORE);
+        await uploadDropboxData(true);
+      }
       initAuth();render();applyCurrentPeriodDefaults();restoreUIState(embedded.uiState||{});
     }catch(err){console.error('NEXO bootstrap',err);setDropboxSyncStatus('Dropbox · atenção','err');
       if(err.code==='BASE_NOT_FOUND')showDropboxGate('A conexão está funcionando, mas a base do NEXO ainda não existe no Dropbox.','Envie o arquivo nexo-dados.json para Apps/NEXOO e clique em Tentar novamente.');
