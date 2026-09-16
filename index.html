@@ -2843,17 +2843,37 @@ class Component extends DCLogic {
     sessionStorage.setItem(DROPBOX_ACCESS_STORE,d.access_token);if(d.refresh_token)localStorage.setItem(DROPBOX_REFRESH_STORE,d.refresh_token);
     sessionStorage.removeItem('nexo_dbx_pkce');history.replaceState({},document.title,DROPBOX_REDIRECT);return d.access_token;
   }
-  async function refreshDropboxToken(){
+  async function refreshDropboxToken(attempt=0){
     const refresh=localStorage.getItem(DROPBOX_REFRESH_STORE);if(!refresh)return '';
     const body=new URLSearchParams({refresh_token:refresh,grant_type:'refresh_token',client_id:DROPBOX_APP_KEY});
-    const r=await fetch('https://api.dropboxapi.com/oauth2/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
-    const d=await r.json();if(!r.ok){localStorage.removeItem(DROPBOX_REFRESH_STORE);sessionStorage.removeItem(DROPBOX_ACCESS_STORE);return ''}
+    let r;
+    try{
+      r=await fetch('https://api.dropboxapi.com/oauth2/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
+    }catch(err){
+      if(attempt<1){await new Promise(resolve=>setTimeout(resolve,450));return refreshDropboxToken(attempt+1)}
+      return '';
+    }
+    let d={};try{d=await r.json()}catch{}
+    if(!r.ok){
+      sessionStorage.removeItem(DROPBOX_ACCESS_STORE);
+      const detail=String(d.error_description||d.error||'').toLowerCase();
+      const invalidGrant=detail.includes('invalid_grant')||detail.includes('revoked')||detail.includes('expired');
+      if(invalidGrant)localStorage.removeItem(DROPBOX_REFRESH_STORE);
+      else if((r.status===429||r.status>=500)&&attempt<1){await new Promise(resolve=>setTimeout(resolve,450));return refreshDropboxToken(attempt+1)}
+      return '';
+    }
+    if(!d.access_token)return '';
     sessionStorage.setItem(DROPBOX_ACCESS_STORE,d.access_token);return d.access_token;
   }
   async function dropboxToken(){return sessionStorage.getItem(DROPBOX_ACCESS_STORE)||await refreshDropboxToken()}
-  async function downloadDropboxData(){
-    const token=await dropboxToken();if(!token)throw Object.assign(new Error('DROPBOX_NOT_CONNECTED'),{code:'DROPBOX_NOT_CONNECTED'});
-    const r=await fetch('https://content.dropboxapi.com/2/files/download',{method:'POST',headers:{Authorization:'Bearer '+token,'Dropbox-API-Arg':JSON.stringify({path:DROPBOX_DATA_FILE})}});
+  async function downloadDropboxData(retry401=true){
+    let token=await dropboxToken();if(!token)throw Object.assign(new Error('DROPBOX_NOT_CONNECTED'),{code:'DROPBOX_NOT_CONNECTED'});
+    let r=await fetch('https://content.dropboxapi.com/2/files/download',{method:'POST',headers:{Authorization:'Bearer '+token,'Dropbox-API-Arg':JSON.stringify({path:DROPBOX_DATA_FILE})}});
+    if(r.status===401&&retry401){
+      sessionStorage.removeItem(DROPBOX_ACCESS_STORE);
+      token=await refreshDropboxToken();
+      if(token)return downloadDropboxData(false);
+    }
     if(r.status===409){const t=await r.text();if(t.includes('not_found'))throw Object.assign(new Error('BASE_NOT_FOUND'),{code:'BASE_NOT_FOUND'});throw new Error(t)}
     if(r.status===401){sessionStorage.removeItem(DROPBOX_ACCESS_STORE);throw Object.assign(new Error('DROPBOX_NOT_CONNECTED'),{code:'DROPBOX_NOT_CONNECTED'});}
     if(!r.ok)throw new Error(await r.text());
