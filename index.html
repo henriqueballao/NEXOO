@@ -2753,14 +2753,14 @@ class Component extends DCLogic {
   const STORE=INSTANCE==='legacy'?'familia_lancamentos_v1':`familia_lancamentos_v1_${INSTANCE}`;
   const STREAM=INSTANCE==='legacy'?'familia_assinaturas_v1':`familia_assinaturas_v1_${INSTANCE}`;
   const DATASTORE=INSTANCE==='legacy'?'familia_controle_dados_v1':`familia_controle_dados_v1_${INSTANCE}`;
-  const AUTHSTORE=INSTANCE==='legacy'?'familia_acesso_v1':`familia_acesso_v1_${INSTANCE}`;
+  const AUTHSTORE='nexo_acesso_web_v2';
   const STREAM_SEED=INSTANCE==='legacy'?'familia_assinaturas_seed_planilha_v1':`familia_assinaturas_seed_planilha_v1_${INSTANCE}`;
   let embedded={entries:[],subscriptions:[],controlData:[],uiState:{},auth:null,bankState:null};
   try{embedded=JSON.parse(document.getElementById('embeddedData')?.textContent||'{}')||embedded}catch{}
   const now=new Date(); let selectedYear=now.getFullYear(); let payingId=null; let editingStreamId=null; let editingEntryId=null; let editingDataId=null;
   const DROPBOX_APP_KEY='hgpycye1ooqazt7';
   const DROPBOX_REDIRECT='https://henriqueballao.github.io/NEXOO/';
-  const DROPBOX_DATA_FILE='/nexo-dados.json';
+  const DROPBOX_DATA_FILE='/nexo-dados-v2.json';
   const DROPBOX_REFRESH_STORE='nexo_dropbox_refresh_v1';
   const DROPBOX_ACCESS_STORE='nexo_dropbox_access_v1';
   let dropboxReady=false, dropboxRev='', dropboxSaveTimer=null, dropboxSaveRunning=false, dropboxSaveAgain=false;
