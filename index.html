@@ -2447,6 +2447,7 @@ nav .actions-menu{margin-top:auto!important}
 @media(max-width:700px){.dropbox-sync-status{margin-left:8px;margin-right:8px}}
 </style><!-- NEXO Dropbox Build 1 -->
 <!-- NEXO Dropbox sessão robusta 2026-09-16 -->
+<!-- NEXO auth obrigatório após Dropbox 2026-09-16 -->
 </head>
 <body class="">
 <div id="dc-root"><div class="sc-host" data-sc-name="NEXO"><div data-dc-tpl="5" id="familia-app-mount" style="min-height: 100vh; background: rgb(21, 36, 32);">
@@ -2928,7 +2929,7 @@ class Component extends DCLogic {
       const token=await dropboxToken();
       if(!token){showDropboxGate('Conecte seu Dropbox para carregar a base do NEXO.');setDropboxSyncStatus('Dropbox · desconectado','err');return}
       const data=await downloadDropboxData();applyDropboxData(data);dropboxReady=true;hideDropboxGate();setDropboxSyncStatus('Dropbox · sincronizado','ok');
-      render();applyCurrentPeriodDefaults();restoreUIState(embedded.uiState||{});unlockApp();
+      render();applyCurrentPeriodDefaults();restoreUIState(embedded.uiState||{});initAuth();
     }catch(err){console.error('NEXO bootstrap',err);setDropboxSyncStatus('Dropbox · atenção','err');
       if(err.code==='BASE_NOT_FOUND')showDropboxGate('A conexão está funcionando, mas a base do NEXO ainda não existe no Dropbox.','O arquivo esperado é nexo-dados-v2.json em Apps/NEXOO.');
       else if(err.code==='BASE_INVALID')showDropboxGate('O arquivo nexo-dados-v2.json encontrado não é uma base válida do NEXO.','Substitua somente o arquivo de dados por uma cópia válida.');
