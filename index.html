@@ -2982,12 +2982,36 @@ class Component extends DCLogic {
       if(params.get('code')){
         const returnedState=params.get('state')||'';
         const expectedState=localStorage.getItem('nexo_dbx_oauth_state')||await dbxVaultGet('oauth_state')||'';
-        if(expectedState && returnedState && expectedState!==returnedState){
-          throw new Error('Retorno de autorização inválido. Conecte o Dropbox novamente.');
+        const stateKey=returnedState?'nexo_dbx_pkce_'+returnedState:'';
+        const verifier=(stateKey&&localStorage.getItem(stateKey))||sessionStorage.getItem('nexo_dbx_pkce')||(returnedState?await dbxVaultGet('pkce_'+returnedState):'');
+
+        if(verifier){
+          if(expectedState && returnedState && expectedState!==returnedState){
+            throw new Error('Retorno de autorização inválido. Conecte o Dropbox novamente.');
+          }
+          await exchangeDropboxCode(params.get('code'),returnedState);
+          try{localStorage.removeItem('nexo_dbx_oauth_state')}catch{}
+        }else{
+          /* O Chrome em modo app pode reabrir a última URL visitada, inclusive o callback
+             OAuth já consumido. Código de autorização é de uso único; nesse caso não devemos
+             tentar trocá-lo novamente. Se já existe credencial persistida, limpamos o callback
+             antigo e seguimos normalmente. */
+          let savedAccess='';
+          try{savedAccess=sessionStorage.getItem(DROPBOX_ACCESS_STORE)||localStorage.getItem(DROPBOX_ACCESS_PERSIST)||''}catch{}
+          if(!savedAccess)savedAccess=await dbxVaultGet('access_token');
+          const savedRefresh=await persistentRefreshToken();
+          if(savedAccess||savedRefresh){
+            try{history.replaceState({},document.title,DROPBOX_REDIRECT)}catch{}
+            try{localStorage.removeItem('nexo_dbx_oauth_state')}catch{}
+            if(returnedState){try{localStorage.removeItem(stateKey)}catch{};await dbxVaultDel('pkce_'+returnedState)}
+            try{sessionStorage.removeItem('nexo_dbx_pkce')}catch{}
+            await dbxVaultDel('oauth_state');
+          }else{
+            try{history.replaceState({},document.title,DROPBOX_REDIRECT)}catch{}
+            throw Object.assign(new Error('Conecte seu Dropbox para carregar a base do NEXO.'),{code:'DROPBOX_NOT_CONNECTED'});
+          }
         }
-        await exchangeDropboxCode(params.get('code'),returnedState);
-        try{localStorage.removeItem('nexo_dbx_oauth_state')}catch{}
-        /* A própria instância que iniciou o OAuth recebe o callback e continua o bootstrap. */
+        /* Callback OAuth tratado de forma idempotente, inclusive após fechar e reabrir o app. */
       }
       const token=await dropboxToken();
       if(!token){showDropboxGate('Conecte seu Dropbox para carregar a base do NEXO.');setDropboxSyncStatus('Dropbox · desconectado','err');return}
