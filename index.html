@@ -2453,6 +2453,7 @@ nav .actions-menu{margin-top:auto!important}
 <div class="auth-brand"><span class="auth-mark"></span><div><strong>NEXO</strong><span>Controle Pessoal</span></div></div>
 <h2 id="authTitle"></h2>
 <p class="auth-sub" id="authSubtitle">Seu controle pessoal em um só lugar.</p>
+    <div id="authBuildMarker" style="font-size:10px;color:#8a9891;margin-top:-4px;margin-bottom:12px;">BUILD AUTH-RESET-V2</div>
 <form class="auth-form" id="authForm">
 <label>Login<input autocomplete="username" id="authLogin" required=""/></label>
 <label>Senha<span class="auth-password-field"><input autocomplete="current-password" id="authPassword" required="" type="password"/><button aria-label="Mostrar senha" class="auth-eye" id="authPasswordEye" title="Mostrar senha" type="button"><svg aria-hidden="true" viewbox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.7"></circle></svg></button></span></label>
@@ -2808,7 +2809,7 @@ class Component extends DCLogic {
     el.textContent=text;el.className='dropbox-sync-status no-print'+(kind?' '+kind:'');
   }
   function currentDropboxPayload(){
-    return {schemaVersion:1,source:'NEXO',updatedAt:new Date().toISOString(),entries,subscriptions,controlData,uiState:captureUIState(),auth,bankState,meta:{authMigration:'github-dropbox-v1'}};
+    return {schemaVersion:1,source:'NEXO',updatedAt:new Date().toISOString(),entries,subscriptions,controlData,uiState:captureUIState(),auth,bankState,meta:{authMigration:'github-dropbox-auth-reset-v2'}};
   }
   function save(){
     if(auth)localStorage.setItem(AUTHSTORE,JSON.stringify(auth));
@@ -2895,10 +2896,11 @@ class Component extends DCLogic {
       if(!token){showDropboxGate('Conecte seu Dropbox para carregar a base do NEXO.');setDropboxSyncStatus('Dropbox · desconectado','err');return}
       const data=await downloadDropboxData();
       data.meta=(data.meta&&typeof data.meta==='object')?data.meta:{};
-      const needsWebAuthMigration=data.meta.authMigration!=='github-dropbox-v1';
+      const needsWebAuthMigration=data.meta.authMigration!=='github-dropbox-auth-reset-v2';
       if(needsWebAuthMigration){
         data.auth=null;
-        data.meta.authMigration='github-dropbox-v1';
+        data.meta.authMigration='github-dropbox-auth-reset-v2';
+        localStorage.removeItem(AUTHSTORE);
       }
       applyDropboxData(data);
       dropboxReady=true;
