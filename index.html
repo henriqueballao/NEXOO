@@ -2781,6 +2781,7 @@ class Component extends DCLogic {
   const DROPBOX_DATA_FILE='/nexo-dados-v2.json';
   const DROPBOX_REFRESH_STORE='nexo_dropbox_refresh_v1';
   const DROPBOX_ACCESS_STORE='nexo_dropbox_access_v1';
+  const DROPBOX_ACCESS_EXPIRES_STORE='nexo_dropbox_access_expires_v1';
   let dropboxReady=false, dropboxRev='', dropboxSaveTimer=null, dropboxSaveRunning=false, dropboxSaveAgain=false;
 
   const hasLocalAuth=localStorage.getItem(AUTHSTORE)!==null;
@@ -2850,7 +2851,7 @@ class Component extends DCLogic {
     const body=new URLSearchParams({code,grant_type:'authorization_code',client_id:DROPBOX_APP_KEY,redirect_uri:DROPBOX_REDIRECT,code_verifier:verifier});
     const r=await fetch('https://api.dropboxapi.com/oauth2/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
     const d=await r.json();if(!r.ok)throw new Error(d.error_description||d.error||'Falha ao autorizar Dropbox.');
-    sessionStorage.setItem(DROPBOX_ACCESS_STORE,d.access_token);if(d.refresh_token)localStorage.setItem(DROPBOX_REFRESH_STORE,d.refresh_token);
+    localStorage.setItem(DROPBOX_ACCESS_STORE,d.access_token);localStorage.setItem(DROPBOX_ACCESS_EXPIRES_STORE,String(Date.now()+Math.max(60,Number(d.expires_in||14400)-60)*1000));if(d.refresh_token)localStorage.setItem(DROPBOX_REFRESH_STORE,d.refresh_token);
     sessionStorage.removeItem('nexo_dbx_pkce');history.replaceState({},document.title,DROPBOX_REDIRECT);return d.access_token;
   }
   async function refreshDropboxToken(){
@@ -2864,29 +2865,28 @@ class Component extends DCLogic {
     }
     let d={};try{d=await r.json()}catch{}
     if(!r.ok){
-      sessionStorage.removeItem(DROPBOX_ACCESS_STORE);
+      localStorage.removeItem(DROPBOX_ACCESS_STORE);localStorage.removeItem(DROPBOX_ACCESS_EXPIRES_STORE);
       const detail=String(d.error_description||d.error||'').toLowerCase();
       const permanentlyInvalid=r.status===400&&(detail.includes('invalid_grant')||detail.includes('revoked')||detail.includes('expired'));
       if(permanentlyInvalid){
-        localStorage.removeItem(DROPBOX_REFRESH_STORE);
-        throw Object.assign(new Error('A autorização do Dropbox expirou. Conecte o Dropbox novamente.'),{code:'DROPBOX_REAUTH'});
+        throw Object.assign(new Error('A autorização do Dropbox precisa ser renovada uma vez. Conecte o Dropbox novamente.'),{code:'DROPBOX_REAUTH'});
       }
       throw Object.assign(new Error('O Dropbox não respondeu corretamente. Sua autorização foi preservada; tente novamente.'),{code:'DROPBOX_REFRESH_TRANSIENT',status:r.status});
     }
     if(!d.access_token)throw Object.assign(new Error('O Dropbox não retornou um token de acesso válido.'),{code:'DROPBOX_REFRESH_TRANSIENT'});
-    sessionStorage.setItem(DROPBOX_ACCESS_STORE,d.access_token);return d.access_token;
+    localStorage.setItem(DROPBOX_ACCESS_STORE,d.access_token);localStorage.setItem(DROPBOX_ACCESS_EXPIRES_STORE,String(Date.now()+Math.max(60,Number(d.expires_in||14400)-60)*1000));return d.access_token;
   }
-  async function dropboxToken(){return sessionStorage.getItem(DROPBOX_ACCESS_STORE)||await refreshDropboxToken()}
+  async function dropboxToken(){const token=localStorage.getItem(DROPBOX_ACCESS_STORE),exp=Number(localStorage.getItem(DROPBOX_ACCESS_EXPIRES_STORE)||0);if(token&&exp>Date.now()+30000)return token;return await refreshDropboxToken()}
   async function downloadDropboxData(retry401=true){
     let token=await dropboxToken();if(!token)throw Object.assign(new Error('DROPBOX_NOT_CONNECTED'),{code:'DROPBOX_NOT_CONNECTED'});
     let r=await fetch('https://content.dropboxapi.com/2/files/download',{method:'POST',headers:{Authorization:'Bearer '+token,'Dropbox-API-Arg':JSON.stringify({path:DROPBOX_DATA_FILE})}});
     if(r.status===401&&retry401){
-      sessionStorage.removeItem(DROPBOX_ACCESS_STORE);
+      localStorage.removeItem(DROPBOX_ACCESS_STORE);localStorage.removeItem(DROPBOX_ACCESS_EXPIRES_STORE);
       token=await refreshDropboxToken();
       if(token)return downloadDropboxData(false);
     }
     if(r.status===409){const t=await r.text();if(t.includes('not_found'))throw Object.assign(new Error('BASE_NOT_FOUND'),{code:'BASE_NOT_FOUND'});throw new Error(t)}
-    if(r.status===401){sessionStorage.removeItem(DROPBOX_ACCESS_STORE);throw Object.assign(new Error('A autorização do Dropbox precisa ser renovada.'),{code:'DROPBOX_REAUTH'});}
+    if(r.status===401){localStorage.removeItem(DROPBOX_ACCESS_STORE);localStorage.removeItem(DROPBOX_ACCESS_EXPIRES_STORE);throw Object.assign(new Error('A autorização do Dropbox precisa ser renovada.'),{code:'DROPBOX_REAUTH'});}
     if(!r.ok)throw new Error(await r.text());
     try{const meta=JSON.parse(r.headers.get('Dropbox-API-Result')||'{}');dropboxRev=meta.rev||''}catch{}
     const data=await r.json();
