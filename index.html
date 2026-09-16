@@ -1,11 +1,53 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NEXO</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>NEXO • Teste Dropbox</title>
+<style>
+body{font-family:Arial,sans-serif;background:#f4f6f5;color:#17251f;margin:0}
+.wrap{min-height:100vh;display:grid;place-items:center;padding:24px}
+.card{width:min(560px,100%);background:#fff;border:1px solid #dbe3df;border-radius:18px;padding:28px}
+h1{margin-top:0} .status{padding:12px;border-radius:10px;background:#eef3f0;margin-bottom:16px}
+.ok{background:#e8f5ee;color:#14573f} .err{background:#faecea;color:#a33e32}
+button{width:100%;padding:13px;margin:5px 0;border-radius:10px;border:1px solid #cbdad3;font-weight:700;cursor:pointer}
+.primary{background:#155b46;color:#fff;border-color:#155b46}
+pre{background:#101c18;color:#d7eee4;padding:14px;border-radius:12px;white-space:pre-wrap;word-break:break-word}
+</style>
 </head>
 <body>
-  <h1>NEXO funcionando no GitHub Pages</h1>
+<div class="wrap"><div class="card">
+<h1>NEXO</h1>
+<p>Teste GitHub Pages + Dropbox API</p>
+<div id="status" class="status">Verificando conexão...</div>
+<button id="connect" class="primary">Conectar Dropbox</button>
+<button id="save">Gravar arquivo de teste</button>
+<button id="read">Ler arquivo de teste</button>
+<button id="disconnect">Desconectar</button>
+<pre id="output">Nenhuma operação executada.</pre>
+</div></div>
+<script>
+const APP_KEY='hgpcyce1oooqazt7';
+const REDIRECT_URI='https://henriqueballao.github.io/NEXOO/';
+const FILE="/nexo-dados.json";
+const $=id=>document.getElementById(id);
+function status(t,c=""){$("status").textContent=t;$("status").className="status "+c}
+function b64(bytes){let s="";bytes.forEach(b=>s+=String.fromCharCode(b));return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")}
+async function sha256(t){return new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(t)))}
+function verifier(){const b=new Uint8Array(64);crypto.getRandomValues(b);return b64(b)}
+async function connect(){const v=verifier();sessionStorage.setItem("pkce",v);const c=b64(await sha256(v));const u=new URL("https://www.dropbox.com/oauth2/authorize");u.searchParams.set("client_id",APP_KEY);u.searchParams.set("response_type","code");u.searchParams.set("redirect_uri",REDIRECT_URI);u.searchParams.set("code_challenge",c);u.searchParams.set("code_challenge_method","S256");u.searchParams.set("token_access_type","offline");location.href=u}
+async function exchange(code){const v=sessionStorage.getItem("pkce");if(!v)throw Error("PKCE ausente. Conecte novamente.");const body=new URLSearchParams({code,grant_type:"authorization_code",client_id:APP_KEY,redirect_uri:REDIRECT_URI,code_verifier:v});const r=await fetch("https://api.dropboxapi.com/oauth2/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body});const d=await r.json();if(!r.ok)throw Error(d.error_description||JSON.stringify(d));sessionStorage.setItem("access",d.access_token);if(d.refresh_token)localStorage.setItem("refresh",d.refresh_token);sessionStorage.removeItem("pkce");history.replaceState({},document.title,REDIRECT_URI)}
+async function refresh(){const rt=localStorage.getItem("refresh");if(!rt)return"";const body=new URLSearchParams({refresh_token:rt,grant_type:"refresh_token",client_id:APP_KEY});const r=await fetch("https://api.dropboxapi.com/oauth2/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body});const d=await r.json();if(!r.ok)throw Error(d.error_description||JSON.stringify(d));sessionStorage.setItem("access",d.access_token);return d.access_token}
+async function token(){return sessionStorage.getItem("access")||await refresh()}
+async function saveFile(){const t=await token();if(!t)throw Error("Conecte o Dropbox primeiro.");const payload={teste:"NEXO conectado ao Dropbox",data:new Date().toISOString()};const r=await fetch("https://content.dropboxapi.com/2/files/upload",{method:"POST",headers:{Authorization:"Bearer "+t,"Dropbox-API-Arg":JSON.stringify({path:FILE,mode:"overwrite",autorename:false,mute:false}),"Content-Type":"application/octet-stream"},body:JSON.stringify(payload,null,2)});const tx=await r.text();if(!r.ok)throw Error(tx);$("output").textContent="GRAVADO\n\n"+JSON.stringify(payload,null,2);status("Arquivo gravado no Dropbox.","ok")}
+async function readFile(){const t=await token();if(!t)throw Error("Conecte o Dropbox primeiro.");const r=await fetch("https://content.dropboxapi.com/2/files/download",{method:"POST",headers:{Authorization:"Bearer "+t,"Dropbox-API-Arg":JSON.stringify({path:FILE})}});const tx=await r.text();if(!r.ok)throw Error(tx);$("output").textContent="LIDO DO DROPBOX\n\n"+tx;status("Arquivo lido do Dropbox.","ok")}
+function disconnect(){sessionStorage.removeItem("access");sessionStorage.removeItem("pkce");localStorage.removeItem("refresh");status("Dropbox desconectado.");$("output").textContent="Sessão encerrada."}
+async function init(){try{const p=new URLSearchParams(location.search);if(p.get("error"))throw Error(p.get("error_description")||p.get("error"));if(p.get("code"))await exchange(p.get("code"));if(await token())status("Dropbox conectado.","ok");else status("Dropbox ainda não conectado.")}catch(e){status("Erro: "+e.message,"err");$("output").textContent=e.message}}
+$("connect").onclick=()=>connect().catch(e=>status("Erro: "+e.message,"err"));
+$("save").onclick=()=>saveFile().catch(e=>{status("Erro ao gravar: "+e.message,"err");$("output").textContent=e.message});
+$("read").onclick=()=>readFile().catch(e=>{status("Erro ao ler: "+e.message,"err");$("output").textContent=e.message});
+$("disconnect").onclick=disconnect;
+init();
+</script>
 </body>
 </html>
