@@ -2434,7 +2434,7 @@ nav .actions-menu{margin-top:auto!important}
 .dropbox-sync-status.busy{color:#f0cf7b;background:rgba(216,163,38,.10)}
 .dropbox-sync-status.err{color:#ff9a8f;background:rgba(202,77,64,.12)}
 @media(max-width:700px){.dropbox-sync-status{margin-left:8px;margin-right:8px}}
-</style><!-- NEXO Dropbox Build 2 - auth migration v1 -->
+</style><!-- NEXO Dropbox Build 1 -->
 </head>
 <body class="">
 <div id="dc-root"><div class="sc-host" data-sc-name="NEXO"><div data-dc-tpl="5" id="familia-app-mount" style="min-height: 100vh; background: rgb(21, 36, 32);">
@@ -2453,7 +2453,6 @@ nav .actions-menu{margin-top:auto!important}
 <div class="auth-brand"><span class="auth-mark"></span><div><strong>NEXO</strong><span>Controle Pessoal</span></div></div>
 <h2 id="authTitle"></h2>
 <p class="auth-sub" id="authSubtitle">Seu controle pessoal em um só lugar.</p>
-    <div id="authBuildMarker" style="font-size:10px;color:#8a9891;margin-top:-4px;margin-bottom:12px;">BUILD AUTH-RESET-V4</div>
 <form class="auth-form" id="authForm">
 <label>Login<input autocomplete="username" id="authLogin" required=""/></label>
 <label>Senha<span class="auth-password-field"><input autocomplete="current-password" id="authPassword" required="" type="password"/><button aria-label="Mostrar senha" class="auth-eye" id="authPasswordEye" title="Mostrar senha" type="button"><svg aria-hidden="true" viewbox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.7"></circle></svg></button></span></label>
@@ -2809,7 +2808,7 @@ class Component extends DCLogic {
     el.textContent=text;el.className='dropbox-sync-status no-print'+(kind?' '+kind:'');
   }
   function currentDropboxPayload(){
-    return {schemaVersion:1,source:'NEXO',updatedAt:new Date().toISOString(),entries,subscriptions,controlData,uiState:captureUIState(),auth,bankState,meta:{authMigration:'github-dropbox-auth-reset-v4'}};
+    return {schemaVersion:1,source:'NEXO',updatedAt:new Date().toISOString(),entries,subscriptions,controlData,uiState:captureUIState(),auth,bankState};
   }
   function save(){
     if(auth)localStorage.setItem(AUTHSTORE,JSON.stringify(auth));
@@ -2894,23 +2893,7 @@ class Component extends DCLogic {
       if(params.get('code'))await exchangeDropboxCode(params.get('code'));
       const token=await dropboxToken();
       if(!token){showDropboxGate('Conecte seu Dropbox para carregar a base do NEXO.');setDropboxSyncStatus('Dropbox · desconectado','err');return}
-      const data=await downloadDropboxData();
-      applyDropboxData(data);
-
-      const needsWebAuthReset=!!auth && auth.webAuthVersion!=='nexo-web-auth-v4';
-      if(needsWebAuthReset){
-        auth=null;
-        localStorage.removeItem(AUTHSTORE);
-      }
-
-      dropboxReady=true;
-      hideDropboxGate();
-      setDropboxSyncStatus('Dropbox · sincronizado','ok');
-
-      if(needsWebAuthReset){
-        await uploadDropboxData(true);
-      }
-
+      const data=await downloadDropboxData();applyDropboxData(data);dropboxReady=true;hideDropboxGate();setDropboxSyncStatus('Dropbox · sincronizado','ok');
       initAuth();render();applyCurrentPeriodDefaults();restoreUIState(embedded.uiState||{});
     }catch(err){console.error('NEXO bootstrap',err);setDropboxSyncStatus('Dropbox · atenção','err');
       if(err.code==='BASE_NOT_FOUND')showDropboxGate('A conexão está funcionando, mas a base do NEXO ainda não existe no Dropbox.','Envie o arquivo nexo-dados.json para Apps/NEXOO e clique em Tentar novamente.');
@@ -2973,7 +2956,7 @@ class Component extends DCLogic {
           if(password.length<4){$('#authError').textContent='A senha deve ter pelo menos 4 caracteres.';return}
           if(password!==$('#authConfirm').value){$('#authError').textContent='As senhas não conferem.';return}
           const salt=newSalt(), hash=await authHash(password,salt);
-          auth={login,salt,hash,webAuthVersion:'nexo-web-auth-v4'};save();unlockApp();
+          auth={login,salt,hash};save();unlockApp();
         }else{
           const hash=await authHash(password,auth.salt);
           if(login.toLocaleLowerCase('pt-BR')!==String(auth.login||'').toLocaleLowerCase('pt-BR')||hash!==auth.hash){$('#authError').textContent='Login ou senha incorretos.';return}
