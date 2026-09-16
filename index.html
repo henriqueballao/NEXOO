@@ -3764,22 +3764,21 @@ function captureUIState(){
   $('#printBtn').onclick=printActive;
   function exitNexo(){
     closeActionsMenu();
-    /* Em janelas/app-mode o navegador pode permitir fechamento programático. */
-    try{window.close()}catch(e){}
-    /* Em Chrome/iPhone o fechamento pode ser bloqueado. Nunca cair em about:blank:
-       volta para o gate de acesso mantendo a autorização do Dropbox. */
-    setTimeout(()=>{
-      if(window.closed)return;
-      try{
-        resetAuthPasswordVisibility();
-        const app=document.querySelector('.app');if(app)app.style.visibility='hidden';
-        document.body.classList.add('auth-locked');
-        const dbx=document.getElementById('dropboxGate');if(dbx)dbx.hidden=true;
-        const gate=document.getElementById('authGate');if(gate)gate.hidden=false;
-        showAuthMode();
-        const login=document.getElementById('authLogin');if(login)login.value='';
-      }catch(e){location.reload()}
-    },180);
+    /* Sair = encerrar somente a sessão do NEXO. Nunca fechar a janela/app. */
+    try{
+      resetAuthPasswordVisibility();
+      const app=document.querySelector('.app');if(app)app.style.visibility='hidden';
+      document.body.classList.add('auth-locked');
+      const dbx=document.getElementById('dropboxGate');if(dbx)dbx.hidden=true;
+      const gate=document.getElementById('authGate');if(gate)gate.hidden=false;
+      showAuthMode();
+      const login=document.getElementById('authLogin');if(login)login.value='';
+      const password=document.getElementById('authPassword');if(password)password.value='';
+      const confirm=document.getElementById('authConfirm');if(confirm)confirm.value='';
+    }catch(e){
+      console.error('NEXO logout',e);
+      initAuth();
+    }
   }
   $('#exitAppBtn').onclick=exitNexo;
   $('#modelCsvBtn').onclick=()=>download('modelo_lancamentos.csv',['id;descricao;centro_custo;favorecido;tipo;valor;data_vencimento;data_pagamento',`1;SALÁRIO;RECEITAS;EMPRESA;RECEITA;10000,00;05/01/${now.getFullYear()};`, `2;CONDOMÍNIO;CASA;CONDOMÍNIO;DESPESA;1500,00;10/01/${now.getFullYear()};`].join('\n'));
