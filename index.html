@@ -2826,22 +2826,34 @@ class Component extends DCLogic {
   function dbxBase64Url(bytes){let bin='';bytes.forEach(b=>bin+=String.fromCharCode(b));return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
   async function dbxSha256(text){return new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text)))}
   function dbxVerifier(){const b=new Uint8Array(64);crypto.getRandomValues(b);return dbxBase64Url(b)}
+  function dbxState(){const b=new Uint8Array(24);crypto.getRandomValues(b);return dbxBase64Url(b)}
   async function connectDropbox(){
-    const verifier=dbxVerifier(),challenge=dbxBase64Url(await dbxSha256(verifier));
+    const verifier=dbxVerifier(),challenge=dbxBase64Url(await dbxSha256(verifier)),state=dbxState();
+    /* O verifier fica temporariamente no armazenamento persistente para que o callback
+       funcione também quando o Chrome abre a autorização fora da janela --app. */
+    localStorage.setItem('nexo_dbx_pkce_'+state,verifier);
     sessionStorage.setItem('nexo_dbx_pkce',verifier);
     const u=new URL('https://www.dropbox.com/oauth2/authorize');
     u.searchParams.set('client_id',DROPBOX_APP_KEY);u.searchParams.set('response_type','code');u.searchParams.set('redirect_uri',DROPBOX_REDIRECT);
     u.searchParams.set('code_challenge',challenge);u.searchParams.set('code_challenge_method','S256');u.searchParams.set('token_access_type','offline');
-    u.searchParams.set('scope','files.content.read files.content.write');
-    location.href=u.toString();
+    u.searchParams.set('scope','files.content.read files.content.write');u.searchParams.set('state',state);
+    const w=window.open(u.toString(),'nexo_dropbox_oauth','popup=yes,width=640,height=760,resizable=yes,scrollbars=yes');
+    if(!w){ location.href=u.toString(); return; }
+    setDropboxSyncStatus('Dropbox · aguardando autorização','busy');
   }
-  async function exchangeDropboxCode(code){
-    const verifier=sessionStorage.getItem('nexo_dbx_pkce');if(!verifier)throw new Error('Autorização expirada. Conecte o Dropbox novamente.');
+  async function exchangeDropboxCode(code,state=''){
+    const stateKey=state?'nexo_dbx_pkce_'+state:'';
+    const verifier=(stateKey&&localStorage.getItem(stateKey))||sessionStorage.getItem('nexo_dbx_pkce');
+    if(!verifier)throw new Error('Autorização expirada. Conecte o Dropbox novamente.');
     const body=new URLSearchParams({code,grant_type:'authorization_code',client_id:DROPBOX_APP_KEY,redirect_uri:DROPBOX_REDIRECT,code_verifier:verifier});
     const r=await fetch('https://api.dropboxapi.com/oauth2/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
     const d=await r.json();if(!r.ok)throw new Error(d.error_description||d.error||'Falha ao autorizar Dropbox.');
     sessionStorage.setItem(DROPBOX_ACCESS_STORE,d.access_token);if(d.refresh_token)localStorage.setItem(DROPBOX_REFRESH_STORE,d.refresh_token);
-    sessionStorage.removeItem('nexo_dbx_pkce');history.replaceState({},document.title,DROPBOX_REDIRECT);return d.access_token;
+    if(stateKey)localStorage.removeItem(stateKey);sessionStorage.removeItem('nexo_dbx_pkce');
+    try{localStorage.setItem('nexo_dbx_connected_at',String(Date.now()))}catch{}
+    try{new BroadcastChannel('nexo_dropbox_oauth').postMessage({type:'connected'})}catch{}
+    try{if(window.opener&&!window.opener.closed)window.opener.postMessage({type:'nexo-dropbox-connected'},location.origin)}catch{}
+    history.replaceState({},document.title,DROPBOX_REDIRECT);return d.access_token;
   }
   async function refreshDropboxToken(){
     const refresh=localStorage.getItem(DROPBOX_REFRESH_STORE);if(!refresh)return '';
@@ -2909,7 +2921,15 @@ class Component extends DCLogic {
     try{
       setDropboxSyncStatus('Dropbox · conectando','busy');
       const params=new URLSearchParams(location.search),oauthError=params.get('error_description')||params.get('error');if(oauthError)throw new Error(oauthError);
-      if(params.get('code'))await exchangeDropboxCode(params.get('code'));
+      if(params.get('code')){
+        await exchangeDropboxCode(params.get('code'),params.get('state')||'');
+        /* Callback aberto pela janela do app: avisa a janela principal e encerra somente o callback. */
+        if(window.opener&&!window.opener.closed){
+          try{window.opener.postMessage({type:'nexo-dropbox-connected'},location.origin)}catch{}
+          try{window.close()}catch{}
+          return;
+        }
+      }
       const token=await dropboxToken();
       if(!token){showDropboxGate('Conecte seu Dropbox para carregar a base do NEXO.');setDropboxSyncStatus('Dropbox · desconectado','err');return}
       const data=await downloadDropboxData();applyDropboxData(data);dropboxReady=true;hideDropboxGate();setDropboxSyncStatus('Dropbox · sincronizado','ok');
@@ -3773,6 +3793,22 @@ function captureUIState(){
 
   const dbxConnectBtn=document.getElementById('dropboxConnectBtn');if(dbxConnectBtn)dbxConnectBtn.onclick=()=>connectDropbox().catch(err=>{const e=document.getElementById('dropboxGateError');if(e)e.textContent=err.message});
   const dbxRetryBtn=document.getElementById('dropboxRetryBtn');if(dbxRetryBtn)dbxRetryBtn.onclick=()=>location.reload();
+  /* Mantém a janela do NEXO aberta enquanto o OAuth ocorre fora dela e conclui a conexão automaticamente. */
+  let __dbxReconnectBusy=false;
+  async function resumeDropboxAfterOAuth(){
+    if(__dbxReconnectBusy)return;__dbxReconnectBusy=true;
+    try{
+      const token=await dropboxToken();
+      if(!token)return;
+      const data=await downloadDropboxData();applyDropboxData(data);dropboxReady=true;hideDropboxGate();
+      setDropboxSyncStatus('Dropbox · sincronizado','ok');render();applyCurrentPeriodDefaults();restoreUIState(embedded.uiState||{});initAuth();
+    }catch(err){console.error('Dropbox OAuth resume',err);setDropboxSyncStatus('Dropbox · atenção','err')}
+    finally{__dbxReconnectBusy=false}
+  }
+  window.addEventListener('message',e=>{if(e.origin===location.origin&&e.data&&e.data.type==='nexo-dropbox-connected')resumeDropboxAfterOAuth()});
+  window.addEventListener('storage',e=>{if(e.key==='nexo_dbx_connected_at'||e.key===DROPBOX_REFRESH_STORE)resumeDropboxAfterOAuth()});
+  try{const __dbxBc=new BroadcastChannel('nexo_dropbox_oauth');__dbxBc.onmessage=e=>{if(e.data&&e.data.type==='connected')resumeDropboxAfterOAuth()}}catch{}
+
   bootstrapNexo();
 
   function setupAuthPasswordEye(buttonId,inputId){
