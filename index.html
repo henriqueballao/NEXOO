@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 
+<!-- NEXO BUILD 20261008-R2.1-LOTE-PRESERVA-UI -->
 <html style="--monthly-table-width: 100%;"><head>
-<meta name="nexo-build" content="20261008-R2-LOTE-VERIFICADO">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0"><meta charset="utf-8"/>
@@ -80,17 +80,11 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
-/* NEXO R2 — seleção e alteração de vencimento em bloco */
-.entry-batch-btn{white-space:nowrap}
-.entry-batch-btn[disabled]{opacity:.45;cursor:not-allowed}
-.entry-select-col{width:38px;min-width:38px;text-align:center!important}
-.entry-select-col input[type="checkbox"]{width:17px;height:17px;accent-color:var(--green,#0d6b52);cursor:pointer}
-.entry-batch-meta{font-size:12px;color:var(--muted);line-height:1.45;margin:2px 0 4px}
-.entry-batch-mode{display:grid;gap:10px}
-.entry-batch-option{display:grid;gap:5px}
-.entry-batch-note{padding:10px 12px;border:1px solid var(--line);background:var(--soft,#f7f8f7);border-radius:10px;font-size:12px;color:var(--muted)}
-@media(max-width:720px){.entry-batch-btn{width:100%}.entry-select-col{width:34px;min-width:34px}}
-@media print{.entry-select-col,.entry-batch-btn{display:none!important}}
+/* NEXO R2.1 — seleção em lote sem alterar a tabela original */
+#entriesTable .bulk-select-col{width:42px;min-width:42px;text-align:center;padding-left:8px;padding-right:8px}
+#entriesTable .bulk-select-col input[type="checkbox"],#entriesBody .bulk-row-select{width:16px;height:16px;cursor:pointer;accent-color:#17664f}
+#bulkDateBtn:disabled{opacity:.45;cursor:not-allowed}
+#bulkDateSummary{font-size:12px;line-height:1.45;padding:10px 12px}
 </style><style id="legacy-familia-style">
 :root{
   --bg:#f6f5f2; --paper:#ffffff; --ink:#1b1f1c; --muted:#767f77; --line:#e5e3dc;
@@ -2285,56 +2279,7 @@ input,select,textarea,button{max-width:100%}
 @media print{
   .app>.section{max-width:none!important;padding:0!important}
   .panel-body{overflow:visible!important}
-}</style>
-<style id="nexo-entries-horizontal-fix">
-/* Lançamentos: mantém as ações acessíveis sem estourar a página */
-#entries .panel{overflow:hidden!important;}
-#entries .panel-body{min-width:0!important;max-width:100%!important;overflow:hidden!important;}
-#entries .panel-body>div{
-  display:block!important;
-  width:100%!important;
-  max-width:100%!important;
-  overflow-x:auto!important;
-  overflow-y:visible!important;
-  -webkit-overflow-scrolling:touch!important;
-  scrollbar-gutter:stable both-edges;
-}
-#entries table{
-  min-width:1220px!important;
-  width:max-content!important;
-}
-#entries th:last-child,
-#entries td:last-child{
-  position:sticky!important;
-  right:0!important;
-  min-width:190px!important;
-  width:190px!important;
-  background:var(--paper,#fff)!important;
-  z-index:3!important;
-  box-shadow:-8px 0 12px -12px rgba(20,36,32,.55);
-}
-#entries thead th:last-child{z-index:6!important;}
-#entries .table-filter-row th:last-child{background:#f8faf8!important;}
-#entries td:last-child .row-actions{
-  display:flex!important;
-  flex-wrap:wrap!important;
-  justify-content:flex-start!important;
-  gap:5px!important;
-}
-#entries .entry-select-col{
-  position:sticky!important;
-  left:0!important;
-  background:var(--paper,#fff)!important;
-  z-index:4!important;
-}
-#entries thead .entry-select-col{z-index:7!important;}
-#entries .table-filter-row .entry-select-col{background:#f8faf8!important;}
-@media(max-width:900px){
-  #entries table{min-width:1160px!important;}
-  #entries th:last-child,#entries td:last-child{min-width:178px!important;width:178px!important;}
-}
-</style>
-</head>
+}</style></head>
 <body data-nexo-build="20260916-CLEAN-R1" class="">
 
 <div class="auth-gate dropbox-gate" hidden="" id="dropboxGate">
@@ -2527,7 +2472,7 @@ input,select,textarea,button{max-width:100%}
 <div class="card kpi" data-kpi-icon="chart"><span aria-hidden="true" class="kpi-icon"><svg viewbox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"></path></svg></span><small>Saldo filtrado</small><strong class="" id="entriesBalance">R$ 0,00</strong><span>receitas − despesas</span></div>
 <div class="card kpi" data-kpi-icon="clock"><span aria-hidden="true" class="kpi-icon"><svg viewbox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg></span><small>Em aberto</small><strong class="" id="entriesOpen">R$ 0,00</strong><span id="entriesOpenSub">0 lançamentos sem baixa</span></div>
 </div>
-<div class="panel"><div class="panel-head"><h2>Lançamentos</h2><div class="filters"><button class="btn primary" id="newEntryBtn" type="button">+ Novo lançamento</button><button class="btn entry-batch-btn" id="batchDateBtn" type="button" disabled>Alterar data (0)</button><select id="entryRangeMode" title="Período"><option value="single">Um ano</option><option value="range">Período</option><option value="all">Todos os anos</option></select><select id="entryYearFrom" title="Ano inicial"><option value="2023">2023</option><option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option><option value="2029">2029</option><option value="2030">2030</option></select><span class="entry-range-sep" style="opacity: 0.35;">até</span><select disabled="" id="entryYearTo" title="Ano final"><option value="2023">2023</option><option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option><option value="2029">2029</option><option value="2030">2030</option></select><div class="entry-month-compact"><span>Venc.</span><select aria-label="Filtrar mês de vencimento" id="efDueMonth" title="Mês do vencimento"><option value="">Todos os meses</option><option value="1">JAN</option><option value="2">FEV</option><option value="3">MAR</option><option value="4">ABR</option><option value="5">MAI</option><option value="6">JUN</option><option value="7">JUL</option><option value="8">AGO</option><option value="9">SET</option><option value="10">OUT</option><option value="11">NOV</option><option value="12">DEZ</option></select></div><div class="entry-month-compact"><span>Pgto.</span><select aria-label="Filtrar mês de pagamento" id="efPayMonth" title="Mês do pagamento"><option value="">Todos os meses</option><option value="1">JAN</option><option value="2">FEV</option><option value="3">MAR</option><option value="4">ABR</option><option value="5">MAI</option><option value="6">JUN</option><option value="7">JUL</option><option value="8">AGO</option><option value="9">SET</option><option value="10">OUT</option><option value="11">NOV</option><option value="12">DEZ</option></select></div><button class="btn filter-clear" id="clearEntryFilters">Limpar filtros</button></div></div><div class="panel-body"><div style="overflow:auto"><table><thead><tr><th class="entry-select-col"><input id="entrySelectAll" type="checkbox" aria-label="Selecionar todos os lançamentos visíveis" title="Selecionar todos os visíveis"/></th><th>Vencimento</th><th>Descrição</th><th>Centro de custo</th><th>Favorecido</th><th>Tipo</th><th class="num">Valor</th><th>Status</th><th>Pagamento</th><th></th></tr><tr class="table-filter-row"><th class="entry-select-col"></th><th><input aria-label="Filtrar vencimento exato" id="efDue" type="date"/></th><th><input id="efDesc" placeholder="Filtrar..."/></th><th><select id="efCost"><option value="">Todos</option></select></th><th><select id="efFav"><option value="">Todos</option></select></th><th><select id="efType"><option value="">Todos</option><option value="RECEITA">Receita</option><option value="DESPESA">Despesa</option></select></th><th><div class="value-range"><input id="efMin" placeholder="mín" step="0.01" type="number"/><input id="efMax" placeholder="máx" step="0.01" type="number"/></div></th><th><select id="efStatus"><option value="">Todos</option><option value="REALIZADO">Realizado</option><option value="VENCIDO">Vencido</option><option value="PREVISTO">Previsto</option></select></th><th><input aria-label="Filtrar pagamento exato" id="efPay" type="date"/></th><th></th></tr></thead><tbody id="entriesBody"></tbody></table></div></div></div>
+<div class="panel"><div class="panel-head"><h2>Lançamentos</h2><div class="filters"><button class="btn primary" id="newEntryBtn" type="button">+ Novo lançamento</button><button class="btn" id="bulkDateBtn" type="button" disabled>Alterar data (0)</button><select id="entryRangeMode" title="Período"><option value="single">Um ano</option><option value="range">Período</option><option value="all">Todos os anos</option></select><select id="entryYearFrom" title="Ano inicial"><option value="2023">2023</option><option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option><option value="2029">2029</option><option value="2030">2030</option></select><span class="entry-range-sep" style="opacity: 0.35;">até</span><select disabled="" id="entryYearTo" title="Ano final"><option value="2023">2023</option><option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option><option value="2029">2029</option><option value="2030">2030</option></select><div class="entry-month-compact"><span>Venc.</span><select aria-label="Filtrar mês de vencimento" id="efDueMonth" title="Mês do vencimento"><option value="">Todos os meses</option><option value="1">JAN</option><option value="2">FEV</option><option value="3">MAR</option><option value="4">ABR</option><option value="5">MAI</option><option value="6">JUN</option><option value="7">JUL</option><option value="8">AGO</option><option value="9">SET</option><option value="10">OUT</option><option value="11">NOV</option><option value="12">DEZ</option></select></div><div class="entry-month-compact"><span>Pgto.</span><select aria-label="Filtrar mês de pagamento" id="efPayMonth" title="Mês do pagamento"><option value="">Todos os meses</option><option value="1">JAN</option><option value="2">FEV</option><option value="3">MAR</option><option value="4">ABR</option><option value="5">MAI</option><option value="6">JUN</option><option value="7">JUL</option><option value="8">AGO</option><option value="9">SET</option><option value="10">OUT</option><option value="11">NOV</option><option value="12">DEZ</option></select></div><button class="btn filter-clear" id="clearEntryFilters">Limpar filtros</button></div></div><div class="panel-body"><div style="overflow:auto"><table id="entriesTable"><thead><tr><th class="bulk-select-col"><input aria-label="Selecionar todos os lançamentos visíveis" id="bulkSelectAll" type="checkbox"/></th><th>Vencimento</th><th>Descrição</th><th>Centro de custo</th><th>Favorecido</th><th>Tipo</th><th class="num">Valor</th><th>Status</th><th>Pagamento</th><th></th></tr><tr class="table-filter-row"><th class="bulk-select-col"></th><th><input aria-label="Filtrar vencimento exato" id="efDue" type="date"/></th><th><input id="efDesc" placeholder="Filtrar..."/></th><th><select id="efCost"><option value="">Todos</option></select></th><th><select id="efFav"><option value="">Todos</option></select></th><th><select id="efType"><option value="">Todos</option><option value="RECEITA">Receita</option><option value="DESPESA">Despesa</option></select></th><th><div class="value-range"><input id="efMin" placeholder="mín" step="0.01" type="number"/><input id="efMax" placeholder="máx" step="0.01" type="number"/></div></th><th><select id="efStatus"><option value="">Todos</option><option value="REALIZADO">Realizado</option><option value="VENCIDO">Vencido</option><option value="PREVISTO">Previsto</option></select></th><th><input aria-label="Filtrar pagamento exato" id="efPay" type="date"/></th><th></th></tr></thead><tbody id="entriesBody"></tbody></table></div></div></div>
 </section>
 <section class="section" id="streaming">
 <div class="grid4">
@@ -2587,13 +2532,12 @@ input,select,textarea,button{max-width:100%}
 <div class="repeat-note" id="repeatNote">Sem repetição.</div>
 </div>
 </div><datalist id="costList"></datalist><datalist id="favList"></datalist><div class="modal-foot"><button class="btn" id="cancelEntryEdit" type="button">Cancelar</button><button class="btn primary" id="saveEntryEdit" type="button">Salvar lançamento</button></div></div></div>
-<div class="modal-back" id="batchDateModal"><div class="modal"><h3>Alterar vencimento em bloco</h3><div class="form-grid">
-<div class="entry-batch-meta" id="batchDateCount">0 lançamentos selecionados</div>
-<label>Operação<select id="batchDateMode"><option value="month">Mover para outro mês mantendo o dia</option><option value="exact">Definir uma única data para todos</option></select></label>
-<div class="entry-batch-option" id="batchMonthWrap"><label>Mês de destino<input id="batchTargetMonth" type="month"/></label></div>
-<div class="entry-batch-option" id="batchExactWrap" hidden><label>Nova data de vencimento<input id="batchTargetDate" type="date"/></label></div>
-<div class="entry-batch-note" id="batchDateNote">Ao mover por mês, o dia original é mantido. Se o dia não existir no mês de destino, será usado o último dia do mês.</div>
-</div><div class="modal-foot"><button class="btn" id="cancelBatchDate" type="button">Cancelar</button><button class="btn primary" id="applyBatchDate" type="button">Aplicar</button></div></div></div>
+<div class="modal-back" id="bulkDateModal"><div class="modal" style="width:min(520px,100%)"><h3>Alterar data dos lançamentos</h3><div class="form-grid">
+<label>Forma de alteração<select id="bulkDateMode"><option value="month">Mover para outro mês mantendo o dia</option><option value="date">Definir uma única data para todos</option></select></label>
+<label id="bulkMonthWrap">Mês de destino<input id="bulkTargetMonth" type="month"/></label>
+<label id="bulkDateWrap" style="display:none">Nova data<input id="bulkTargetDate" type="date"/></label>
+<div class="notice" id="bulkDateSummary">Nenhum lançamento selecionado.</div>
+</div><div class="modal-foot"><button class="btn" id="cancelBulkDate" type="button">Cancelar</button><button class="btn primary" id="applyBulkDate" type="button">Aplicar alteração</button></div></div></div>
 <div class="modal-back" id="payModal"><div class="modal"><h3>Dar baixa no lançamento</h3><div class="form-grid"><label>Data do pagamento<input id="payDate" type="date"/></label></div><div class="modal-foot"><button class="btn" id="cancelPay">Cancelar</button><button class="btn primary" id="confirmPay">Confirmar baixa</button></div></div></div>
 <div class="modal-back" id="dayModal"><div class="modal"><h3 id="dayModalTitle">Movimentos do dia</h3><div class="day-detail" id="dayModalBody"></div><div class="modal-foot"><button class="btn" id="closeDayModal">Fechar</button></div></div></div>
 <div class="modal-back" id="monthlyModal"><div class="modal" style="width:min(680px,100%)"><h3 id="monthlyModalTitle">Movimentos do mês</h3><div class="monthly-detail-list" id="monthlyModalBody"></div><div class="modal-foot"><button class="btn" id="closeMonthlyModal">Fechar</button></div></div></div>
@@ -3126,54 +3070,56 @@ function captureUIState(){
     else if(mode==='single'){yf.disabled=false;yt.disabled=true;yt.value=yf.value;if(sep)sep.style.opacity='.35';}
     else{yf.disabled=false;yt.disabled=false;if(sep)sep.style.opacity='1';}
   }
-  let selectedEntryIds=new Set();
-  function updateBatchDateButton(){
-    const btn=$('#batchDateBtn'); if(!btn)return;
-    const n=selectedEntryIds.size; btn.disabled=n===0; btn.textContent=`Alterar data (${n})`;
+  const bulkSelectedEntries=new Set();
+  let bulkVisibleEntryIds=[];
+  function syncBulkDateUI(){
+    const btn=$('#bulkDateBtn'), all=$('#bulkSelectAll');
+    const n=bulkSelectedEntries.size;
+    if(btn){btn.textContent=`Alterar data (${n})`;btn.disabled=n===0}
+    if(all){const selectedVisible=bulkVisibleEntryIds.filter(id=>bulkSelectedEntries.has(String(id))).length;all.checked=bulkVisibleEntryIds.length>0&&selectedVisible===bulkVisibleEntryIds.length;all.indeterminate=selectedVisible>0&&selectedVisible<bulkVisibleEntryIds.length}
   }
-  function moveDueToMonth(iso,ym){
+  function openBulkDateModal(){
+    if(!bulkSelectedEntries.size)return;
+    const first=[...bulkSelectedEntries].map(id=>entries.find(e=>String(e.id)===String(id))).find(Boolean);
+    const base=first?.data_vencimento||`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+    const next=addMonthsISO(base,1);
+    $('#bulkTargetMonth').value=next.slice(0,7);
+    $('#bulkTargetDate').value=next;
+    $('#bulkDateMode').value='month';
+    syncBulkDateMode();
+    $('#bulkDateSummary').textContent=`${bulkSelectedEntries.size} lançamento${bulkSelectedEntries.size===1?'':'s'} selecionado${bulkSelectedEntries.size===1?'':'s'}.`;
+    $('#bulkDateModal').classList.add('open');
+  }
+  function closeBulkDateModal(){$('#bulkDateModal').classList.remove('open')}
+  function syncBulkDateMode(){const mode=$('#bulkDateMode')?.value||'month';$('#bulkMonthWrap').style.display=mode==='month'?'grid':'none';$('#bulkDateWrap').style.display=mode==='date'?'grid':'none'}
+  function moveISOToMonthKeepingDay(iso,ym){
     if(!iso||!ym)return iso;
-    const [y,m]=ym.split('-').map(Number), d=Number(String(iso).slice(8,10))||1;
-    const last=new Date(y,m,0).getDate();
-    return `${y}-${String(m).padStart(2,'0')}-${String(Math.min(d,last)).padStart(2,'0')}`;
+    const [yy,mm]=ym.split('-').map(Number), day=Number(String(iso).slice(8,10))||1;
+    const last=new Date(Date.UTC(yy,mm,0)).getUTCDate();
+    return `${yy}-${String(mm).padStart(2,'0')}-${String(Math.min(day,last)).padStart(2,'0')}`;
   }
-  function syncBatchDateMode(){
-    const mode=$('#batchDateMode')?.value||'month';
-    const mw=$('#batchMonthWrap'), ew=$('#batchExactWrap');
-    if(mw)mw.hidden=mode!=='month'; if(ew)ew.hidden=mode!=='exact';
+  function applyBulkDateChange(){
+    const ids=[...bulkSelectedEntries];if(!ids.length)return closeBulkDateModal();
+    const mode=$('#bulkDateMode').value;
+    const target=mode==='month'?$('#bulkTargetMonth').value:$('#bulkTargetDate').value;
+    if(!target){alert(mode==='month'?'Informe o mês de destino.':'Informe a nova data.');return}
+    const selected=ids.map(id=>entries.find(e=>String(e.id)===String(id))).filter(Boolean);
+    if(!selected.length)return closeBulkDateModal();
+    const label=mode==='month'?`mover ${selected.length} lançamento${selected.length===1?'':'s'} para ${target.slice(5,7)}/${target.slice(0,4)}, mantendo o dia de vencimento`:`alterar ${selected.length} lançamento${selected.length===1?'':'s'} para ${br(target)}`;
+    if(!confirm(`Confirmar ${label}?`))return;
+    selected.forEach(e=>{e.data_vencimento=mode==='month'?moveISOToMonthKeepingDay(e.data_vencimento,target):target});
+    bulkSelectedEntries.clear();
+    save();closeBulkDateModal();render();
   }
-  function openBatchDate(){
-    if(!selectedEntryIds.size)return;
-    const ids=[...selectedEntryIds].filter(id=>entries.some(e=>e.id===id));
-    if(!ids.length){selectedEntryIds.clear();updateBatchDateButton();return}
-    const current=new Date(); current.setMonth(current.getMonth()+1);
-    const ym=`${current.getFullYear()}-${String(current.getMonth()+1).padStart(2,'0')}`;
-    $('#batchTargetMonth').value=ym; $('#batchTargetDate').value=''; $('#batchDateMode').value='month';
-    $('#batchDateCount').textContent=`${ids.length} lançamento${ids.length===1?'':'s'} selecionado${ids.length===1?'':'s'}`;
-    syncBatchDateMode(); $('#batchDateModal').classList.add('open');
-  }
-  function closeBatchDate(){ $('#batchDateModal')?.classList.remove('open'); }
-  function applyBatchDate(){
-    const ids=new Set([...selectedEntryIds]); if(!ids.size)return closeBatchDate();
-    const mode=$('#batchDateMode')?.value||'month';
-    if(mode==='exact'){
-      const target=$('#batchTargetDate')?.value||''; if(!/^\d{4}-\d{2}-\d{2}$/.test(target)){alert('Informe a nova data.');return}
-      entries.forEach(e=>{if(ids.has(e.id))e.data_vencimento=target});
-    }else{
-      const ym=$('#batchTargetMonth')?.value||''; if(!/^\d{4}-\d{2}$/.test(ym)){alert('Informe o mês de destino.');return}
-      entries.forEach(e=>{if(ids.has(e.id))e.data_vencimento=moveDueToMonth(e.data_vencimento,ym)});
-    }
-    selectedEntryIds.clear(); save(); closeBatchDate(); render();
-  }
+
   function renderEntries(){fillEntryFilterOptions(); syncEntryPeriodControls(); const period=entryPeriod(); const dueMonth=Number($('#efDueMonth')?.value)||0, due=$('#efDue')?.value||'', desc=($('#efDesc')?.value||'').trim().toLowerCase(), cost=$('#efCost')?.value||'', fav=$('#efFav')?.value||'', type=$('#efType')?.value||'', stf=$('#efStatus')?.value||'', payMonth=Number($('#efPayMonth')?.value)||0, pay=$('#efPay')?.value||'', minRaw=$('#efMin')?.value, maxRaw=$('#efMax')?.value; const min=minRaw===''?-Infinity:Number(minRaw), max=maxRaw===''?Infinity:Number(maxRaw); let d=entries.filter(e=>{const ey=yearOf(e.data_vencimento), dm=Number(String(e.data_vencimento||'').slice(5,7)), pm=Number(String(e.data_pagamento||'').slice(5,7));return ey>=period.from&&ey<=period.to&&(!dueMonth||dm===dueMonth)&&(!due||e.data_vencimento===due)&&(!desc||e.descricao.toLowerCase().includes(desc))&&(!cost||e.centro_custo===cost)&&(!fav||e.favorecido===fav)&&(!type||e.tipo===type)&&e.valor>=min&&e.valor<=max&&(!stf||status(e)===stf)&&(!payMonth||pm===payMonth)&&(!pay||e.data_pagamento===pay)}).sort((a,b)=>a.data_vencimento.localeCompare(b.data_vencimento)); const filtIncome=d.filter(e=>e.tipo==='RECEITA').reduce((a,e)=>a+e.valor,0),filtExpense=d.filter(e=>e.tipo==='DESPESA').reduce((a,e)=>a+e.valor,0),filtBalance=filtIncome-filtExpense,openRows=d.filter(e=>!e.data_pagamento),filtOpen=openRows.reduce((a,e)=>a+(e.tipo==='DESPESA'?e.valor:-e.valor),0);
   $('#entriesIncome').textContent=money(filtIncome);$('#entriesExpense').textContent=money(filtExpense);$('#entriesBalance').textContent=money(filtBalance);$('#entriesOpen').textContent=money(filtOpen);
   $('#entriesIncomeSub').textContent=`${d.filter(e=>e.tipo==='RECEITA').length} lançamento${d.filter(e=>e.tipo==='RECEITA').length===1?'':'s'}`;$('#entriesExpenseSub').textContent=`${d.filter(e=>e.tipo==='DESPESA').length} lançamento${d.filter(e=>e.tipo==='DESPESA').length===1?'':'s'}`;$('#entriesOpenSub').textContent=`${openRows.length} lançamento${openRows.length===1?'':'s'} sem baixa`;
   $('#entriesBalance').classList.toggle('negative-value',filtBalance<0);$('#entriesOpen').classList.toggle('negative-value',filtOpen<0);
-  const visibleIds=new Set(d.map(e=>e.id)); selectedEntryIds=new Set([...selectedEntryIds].filter(id=>visibleIds.has(id)));
-  $('#entriesBody').innerHTML=d.length?d.map(e=>{const st=status(e), cls=st==='REALIZADO'?'ok':st==='VENCIDO'?'danger':'warn', checked=selectedEntryIds.has(e.id)?' checked':'';return `<tr><td class="entry-select-col"><input type="checkbox" data-entry-select="${e.id}" aria-label="Selecionar ${esc(e.descricao)}"${checked}/></td><td>${br(e.data_vencimento)}</td><td>${esc(e.descricao)}</td><td>${esc(e.centro_custo)}</td><td>${esc(e.favorecido)}</td><td><span class="badge">${e.tipo}</span></td><td class="num">${money(e.valor)}</td><td><span class="badge ${cls}">${st}</span></td><td>${br(e.data_pagamento)}</td><td><div class="row-actions"><button class="mini" data-eedit="${e.id}">Editar</button>${e.data_pagamento?`<button class="mini undo" data-undo="${e.id}">Desfazer</button>`:`<button class="mini pay" data-pay="${e.id}">Dar baixa</button>`}<button class="mini" data-edel="${e.id}">Excluir</button></div></td></tr>`}).join(''):'<tr><td colspan="10" class="empty">Nenhum lançamento encontrado.</td></tr>';
-  const all=$('#entrySelectAll'); if(all){all.checked=d.length>0&&d.every(e=>selectedEntryIds.has(e.id));all.indeterminate=d.some(e=>selectedEntryIds.has(e.id))&&!all.checked;}
-  $$('[data-entry-select]').forEach(c=>c.onchange=()=>{if(c.checked)selectedEntryIds.add(c.dataset.entrySelect);else selectedEntryIds.delete(c.dataset.entrySelect);updateBatchDateButton();if(all){all.checked=d.length>0&&d.every(e=>selectedEntryIds.has(e.id));all.indeterminate=d.some(e=>selectedEntryIds.has(e.id))&&!all.checked;}});
-  updateBatchDateButton();
+  bulkVisibleEntryIds=d.map(e=>String(e.id));
+  $('#entriesBody').innerHTML=d.length?d.map(e=>{const st=status(e), cls=st==='REALIZADO'?'ok':st==='VENCIDO'?'danger':'warn';const checked=bulkSelectedEntries.has(String(e.id))?' checked':'';return `<tr><td class="bulk-select-col"><input class="bulk-row-select" aria-label="Selecionar ${esc(e.descricao)}" data-bulk-id="${e.id}" type="checkbox"${checked}/></td><td>${br(e.data_vencimento)}</td><td>${esc(e.descricao)}</td><td>${esc(e.centro_custo)}</td><td>${esc(e.favorecido)}</td><td><span class="badge">${e.tipo}</span></td><td class="num">${money(e.valor)}</td><td><span class="badge ${cls}">${st}</span></td><td>${br(e.data_pagamento)}</td><td><div class="row-actions"><button class="mini" data-eedit="${e.id}">Editar</button>${e.data_pagamento?`<button class="mini undo" data-undo="${e.id}">Desfazer</button>`:`<button class="mini pay" data-pay="${e.id}">Dar baixa</button>`}<button class="mini" data-edel="${e.id}">Excluir</button></div></td></tr>`}).join(''):'<tr><td colspan="10" class="empty">Nenhum lançamento encontrado.</td></tr>';
+  $$('.bulk-row-select').forEach(c=>c.onchange=()=>{const id=String(c.dataset.bulkId);c.checked?bulkSelectedEntries.add(id):bulkSelectedEntries.delete(id);syncBulkDateUI()});
+  syncBulkDateUI();
   $$('[data-pay]').forEach(b=>b.onclick=()=>openPay(b.dataset.pay)); $$('[data-undo]').forEach(b=>b.onclick=()=>{const e=entries.find(x=>x.id===b.dataset.undo);if(e){e.data_pagamento='';save();render()}}); $$('[data-eedit]').forEach(b=>b.onclick=()=>openEntryEdit(b.dataset.eedit)); $$('[data-edel]').forEach(b=>b.onclick=()=>deleteEntry(b.dataset.edel))}
 
   function refreshEntryLists(){const costs=[...new Set(entries.map(e=>e.centro_custo).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'));const favs=[...new Set(entries.map(e=>e.favorecido).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'));$('#costList').innerHTML=costs.map(x=>`<option value="${esc(x)}"></option>`).join('');$('#favList').innerHTML=favs.map(x=>`<option value="${esc(x)}"></option>`).join('')}
@@ -3418,11 +3364,7 @@ function captureUIState(){
 
   function render(){setupYears();setupSidebarSummary();renderOverview();renderOverdue();renderEntries();renderDaily();renderMonthly();renderStreaming();renderDataControl();decorateKpis();renderSidebarPanel()}
   function openPay(id){payingId=id;$('#payDate').value=new Date().toISOString().slice(0,10);$('#payModal').classList.add('open')}
-  $('#newEntryBtn').onclick=()=>openEntryEdit();
-  $('#batchDateBtn').onclick=openBatchDate;
-  $('#entrySelectAll').onchange=()=>{const all=$('#entrySelectAll');const boxes=$$('[data-entry-select]');boxes.forEach(c=>{c.checked=all.checked;if(all.checked)selectedEntryIds.add(c.dataset.entrySelect);else selectedEntryIds.delete(c.dataset.entrySelect)});all.indeterminate=false;updateBatchDateButton();};
-  $('#batchDateMode').onchange=syncBatchDateMode; $('#cancelBatchDate').onclick=closeBatchDate; $('#applyBatchDate').onclick=applyBatchDate; $('#batchDateModal').onclick=e=>{if(e.target.id==='batchDateModal')closeBatchDate()};
-  $('#leRepeat').onchange=syncRepeatFields; $('#cancelEntryEdit').onclick=closeEntryEdit; $('#saveEntryEdit').onclick=saveEntryEdit; $('#entryModal').onclick=e=>{if(e.target.id==='entryModal')closeEntryEdit()};
+  $('#newEntryBtn').onclick=()=>openEntryEdit(); $('#leRepeat').onchange=syncRepeatFields; $('#cancelEntryEdit').onclick=closeEntryEdit; $('#saveEntryEdit').onclick=saveEntryEdit; $('#entryModal').onclick=e=>{if(e.target.id==='entryModal')closeEntryEdit()};
   $('#dataEditModal').onclick=e=>{if(e.target.id==='dataEditModal')closeDataEdit()}; $('#cancelDataEdit').onclick=closeDataEdit; $('#saveDataEdit').onclick=()=>{const d=controlData.find(x=>x.id===editingDataId);if(!d)return closeDataEdit();const service=$('#deService').value.trim();if(!service){alert('Informe o serviço.');return}d.service=service;d.login=$('#deLogin').value.trim();d.password=$('#dePassword').value;d.note=$('#deNote').value.trim();save();closeDataEdit();renderDataControl()};
   $('#cancelPay').onclick=()=>$('#payModal').classList.remove('open'); $('#confirmPay').onclick=()=>{const e=entries.find(x=>x.id===payingId);if(e){e.data_pagamento=$('#payDate').value;save();render()}$('#payModal').classList.remove('open')}; $('#closeDayModal').onclick=()=>$('#dayModal').classList.remove('open'); $('#dayModal').onclick=e=>{if(e.target.id==='dayModal')$('#dayModal').classList.remove('open')}; $('#closeMonthlyModal').onclick=()=>$('#monthlyModal').classList.remove('open'); $('#monthlyModal').onclick=e=>{if(e.target.id==='monthlyModal')$('#monthlyModal').classList.remove('open')}; $('#streamEditModal').onclick=e=>{if(e.target.id==='streamEditModal')closeStreamEdit()}
 
@@ -3741,6 +3683,12 @@ function captureUIState(){
   $('#sidebarYear').onchange=()=>{bankState.year=Number($('#sidebarYear').value);renderSidebarPanel()};
   $('#editBankBalance').onclick=editSidebarBankBalance;
   $('#overdueSearch').oninput=renderOverdue;$('#overdueType').onchange=renderOverdue;$('#overdueYear').onchange=renderOverdue;$('#overdueMonth').onchange=renderOverdue;
+  $('#bulkDateBtn').onclick=openBulkDateModal;
+  $('#cancelBulkDate').onclick=closeBulkDateModal;
+  $('#applyBulkDate').onclick=applyBulkDateChange;
+  $('#bulkDateMode').onchange=syncBulkDateMode;
+  $('#bulkSelectAll').onchange=()=>{const all=$('#bulkSelectAll').checked;bulkVisibleEntryIds.forEach(id=>all?bulkSelectedEntries.add(String(id)):bulkSelectedEntries.delete(String(id)));renderEntries()};
+  $('#bulkDateModal').addEventListener('click',e=>{if(e.target===$('#bulkDateModal'))closeBulkDateModal()});
   ['efDueMonth','efDue','efDesc','efCost','efFav','efType','efMin','efMax','efStatus','efPayMonth','efPay'].forEach(id=>{const el=$('#'+id);if(el){el.addEventListener(el.tagName==='SELECT'?'change':'input',renderEntries)}}); ['entryRangeMode','entryYearFrom','entryYearTo'].forEach(id=>{const el=$('#'+id);if(el)el.addEventListener('change',()=>{if(id==='entryYearFrom'&&$('#entryRangeMode').value==='single')$('#entryYearTo').value=el.value;renderEntries()})}); $('#clearEntryFilters').onclick=()=>{['efDueMonth','efDue','efDesc','efCost','efFav','efType','efMin','efMax','efStatus','efPayMonth','efPay'].forEach(id=>{const el=$('#'+id);if(el)el.value=''});renderEntries();renderSidebarPanel()};$('#dailyYear').onchange=renderDaily;$('#dailyMode').onchange=renderDaily;$('#dailyMonth').onchange=renderDaily;$('#overviewYear').onchange=()=>{
     selectedYear=Number($('#overviewYear').value)||now.getFullYear();
     renderOverview();
