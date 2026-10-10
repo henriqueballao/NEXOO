@@ -1,0 +1,25 @@
+name: NEXO daily notifications
+
+on:
+  schedule:
+    - cron: '0 11 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install web-push
+        run: npm install --no-save web-push@3.6.7
+      - name: Send NEXO notifications
+        env:
+          NEXO_DROPBOX_REFRESH_TOKEN: ${{ secrets.NEXO_DROPBOX_REFRESH_TOKEN }}
+          NEXO_VAPID_PRIVATE_KEY: ${{ secrets.NEXO_VAPID_PRIVATE_KEY }}
+        run: node scripts/nexo-notify.mjs
