@@ -5,7 +5,7 @@ const DROPBOX_DATA_FILE='/nexo-dados-v2.json';
 const TIME_ZONE='America/Sao_Paulo';
 const refreshToken=process.env.NEXO_DROPBOX_REFRESH_TOKEN||'';
 const vapidPrivate=process.env.NEXO_VAPID_PRIVATE_KEY||'';
-const vapidPublic='BJRKSEUyyUz700oLmoafiBVWo9xWUVj6zRFdW6Z05ZZAm7gT-mle5vJ0XSqBYzvxJcTRD6CafA59qF0CF8ZGhG0';
+const vapidPublic='BAW5lDoi53oRMvfNOVZWnFestpXXf8RZ71NJL4UYPrLZG3VbPHivH5CnXI2kw2hI035t5WDILyECfLhQz64GemQ';
 
 if(!refreshToken||!vapidPrivate){
   console.log('NEXO notifications: secrets not configured; skipping.');
