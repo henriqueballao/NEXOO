@@ -1,0 +1,11 @@
+{
+  "name": "NEXO — Controle Pessoal",
+  "short_name": "NEXO",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#10251f",
+  "theme_color": "#10251f",
+  "lang": "pt-BR"
+}
