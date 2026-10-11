@@ -3949,16 +3949,21 @@ function captureUIState(){
       const reg=await ensureNexoServiceWorker();
       const permission=await Notification.requestPermission();
       if(permission!=='granted')throw new Error(permission==='denied'?'Permissão de notificações bloqueada no celular.':'Permissão de notificações não concedida.');
+      const prior=currentPushDevice();
       let sub=await reg.pushManager.getSubscription();
+      if(sub&&prior?.vapidPublicKey!==NEXO_VAPID_PUBLIC_KEY){
+        await sub.unsubscribe();
+        sub=null;
+      }
       if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:pushBase64ToUint8Array(NEXO_VAPID_PUBLIC_KEY)});
       const id=pushDeviceId(),json=sub.toJSON(),nowIso=new Date().toISOString();
-      const prior=currentPushDevice();
       const device={
         id,
         active:true,
         entriesToday:$('#notifyEntriesToday').checked,
         subscriptionsToday:$('#notifySubscriptionsToday').checked,
         subscription:json,
+        vapidPublicKey:NEXO_VAPID_PUBLIC_KEY,
         createdAt:prior?.createdAt||nowIso,
         updatedAt:nowIso
       };
