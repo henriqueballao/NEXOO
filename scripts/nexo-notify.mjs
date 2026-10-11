@@ -12,7 +12,7 @@ if(!refreshToken||!vapidPrivate){
   process.exit(0);
 }
 
-webpush.setVapidDetails('mailto:nexo@local.invalid',vapidPublic,vapidPrivate);
+webpush.setVapidDetails('https://henriqueballao.github.io/NEXOO/',vapidPublic,vapidPrivate);
 
 function dateParts(){
   const fmt=new Intl.DateTimeFormat('en-CA',{timeZone:TIME_ZONE,year:'numeric',month:'2-digit',day:'2-digit'});
