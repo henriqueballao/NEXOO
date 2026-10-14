@@ -2687,6 +2687,39 @@ input,select,textarea,button{max-width:100%}
 .notification-actions{flex-wrap:wrap}
 @media(max-width:700px){.notification-actions .btn{flex:1 1 140px}}
 </style>
+
+<style id="nexo-desktop-fullwidth-subscriptions-20261014">
+/* Desktop: ocupar a largura da janela e ajustar assinaturas sem scroll lateral. */
+@media screen and (min-width: 1280px){
+  html,body{max-width:none!important;width:100%!important}
+  .app{width:100%!important;max-width:none!important;margin:0!important}
+  #streaming{min-width:0!important;width:100%!important;max-width:none!important}
+  #streaming .panel,#streaming .panel-body,#streaming>.grid4{min-width:0!important;max-width:none!important;width:100%!important;box-sizing:border-box!important}
+  #streaming .stream-grid-subscriptions{width:100%!important;max-width:100%!important;overflow-x:hidden!important}
+  #streaming .stream-grid-subscriptions table{width:100%!important;min-width:0!important;max-width:100%!important;table-layout:fixed!important;font-size:10px!important}
+  #streaming .stream-grid-subscriptions th,#streaming .stream-grid-subscriptions td{min-width:0!important;max-width:none!important;padding:7px 5px!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+  #streaming .stream-grid-subscriptions th:nth-child(1){width:10%!important}
+  #streaming .stream-grid-subscriptions th:nth-child(2){width:19%!important}
+  #streaming .stream-grid-subscriptions th:nth-child(3){width:11%!important}
+  #streaming .stream-grid-subscriptions th:nth-child(4){width:12%!important}
+  #streaming .stream-grid-subscriptions th:nth-child(5){width:6%!important}
+  #streaming .stream-grid-subscriptions th:nth-child(6){width:7%!important}
+  #streaming .stream-grid-subscriptions th:nth-child(7){width:5%!important}
+  #streaming .stream-grid-subscriptions th:nth-child(8){width:30%!important}
+  #streaming .stream-grid-subscriptions th:nth-child(9){width:0!important;padding:0!important}
+  #streaming .stream-grid-subscriptions td:nth-child(9){width:0!important;padding:0!important}
+  #streaming .stream-grid-subscriptions .stream-login,#streaming .stream-grid-subscriptions .stream-password{min-width:0!important;max-width:100%!important}
+  #streaming .stream-grid-subscriptions .stream-login-link{max-width:100%!important}
+  #streaming .stream-grid-subscriptions .months{min-width:0!important;display:flex!important;gap:2px!important;width:100%!important;justify-content:space-between!important}
+  #streaming .stream-grid-subscriptions .months .m{flex:0 1 22px!important;width:22px!important;min-width:0!important;height:22px!important;padding:0!important;font-size:9px!important}
+  #streaming .stream-form-expanded{grid-template-columns:minmax(0,1.15fr) minmax(0,1.6fr) minmax(0,.95fr) minmax(0,1fr) minmax(85px,.65fr) minmax(80px,.65fr) minmax(80px,.65fr) auto!important;min-width:0!important}
+  #streaming .stream-form-expanded>*{min-width:0!important;max-width:100%!important}
+}
+@media screen and (min-width: 1280px) and (max-width: 1499px){
+  #streaming .stream-grid-subscriptions th,#streaming .stream-grid-subscriptions td{font-size:9px!important;padding-left:3px!important;padding-right:3px!important}
+  #streaming .stream-grid-subscriptions .months .m{width:18px!important;flex-basis:18px!important;height:20px!important;font-size:8px!important}
+}
+</style>
 </head>
 <body data-nexo-build="20260916-CLEAN-R1" class="">
 
