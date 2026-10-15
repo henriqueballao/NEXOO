@@ -1,0 +1,14 @@
+{
+  "name": "nexoo-notifications",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node scripts/nexo-notify.mjs"
+  },
+  "dependencies": {
+    "web-push": "3.6.7"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
