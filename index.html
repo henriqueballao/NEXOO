@@ -3369,7 +3369,7 @@ input,select,textarea,button{max-width:100%}
       applyDropboxData(data);dropboxReady=true;hideDropboxGate();
       try{sessionStorage.removeItem('nexo_dbx_auto_oauth_attempt')}catch{}
       setDropboxSyncStatus('Dropbox · sincronizado','ok');
-      render();restoreUIState(embedded.uiState||{});applyCurrentPeriodDefaults();initAuth();
+      render();restoreUIState(embedded.uiState||{});applyCurrentPeriodDefaults();initAuth();nexoLoginSyncReady=true;const loginSubmit=document.getElementById('authSubmit');if(loginSubmit)loginSubmit.disabled=false;
     }catch(err){
       console.error('NEXO bootstrap',NEXO_BUILD,err);
       setDropboxSyncStatus('Dropbox · atenção','err');
@@ -3429,6 +3429,7 @@ input,select,textarea,button{max-width:100%}
     }));
     $('#authForm').onsubmit=async e=>{
       e.preventDefault();
+      if(!nexoLoginSyncReady){$('#authError').textContent='Aguarde a sincronização com o Dropbox.';return}
       const login=$('#authLogin').value.trim(), password=$('#authPassword').value, first=!auth||!auth.login||!auth.hash||!auth.salt;
       $('#authError').textContent='';
       if(!login||!password){$('#authError').textContent='Informe login e senha.';return}
@@ -4503,6 +4504,24 @@ function captureUIState(){
 
   const dbxConnectBtn=document.getElementById('dropboxConnectBtn');if(dbxConnectBtn)dbxConnectBtn.onclick=()=>connectDropbox().catch(err=>{const e=document.getElementById('dropboxGateError');if(e)e.textContent=err.message});
   const dbxRetryBtn=document.getElementById('dropboxRetryBtn');if(dbxRetryBtn)dbxRetryBtn.onclick=()=>location.reload();
+  /* Exibir login imediatamente; autenticação e dados só são liberados após sincronizar Dropbox. */
+  let nexoLoginSyncReady=false;
+  function showEarlyLogin(){
+    const gate=document.getElementById('authGate'),boot=document.getElementById('__familia_boot_mask');
+    if(!gate)return;
+    document.body.classList.add('auth-locked');
+    gate.hidden=false;
+    gate.style.display='flex';
+    const title=document.getElementById('authTitle'),sub=document.getElementById('authSubtitle');
+    if(title)title.textContent='';
+    if(sub)sub.textContent='Seu controle pessoal em um só lugar.';
+    const login=document.getElementById('authLogin');
+    if(login&&auth&&auth.login)login.value=auth.login;
+    const submit=document.getElementById('authSubmit');
+    if(submit){submit.disabled=true;submit.textContent='Sincronizando…'}
+    if(boot)boot.remove();
+  }
+  showEarlyLogin();
   bootstrapNexo();
 
   function setupAuthPasswordEye(buttonId,inputId){
