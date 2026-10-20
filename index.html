@@ -3729,7 +3729,7 @@ function captureUIState(){
   }
   function confirmBatchSettle(){
     const date=$('#batchSettleDate').value;
-    if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)){alert('Informe a data de pagamento.');return}
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){alert('Informe a data de pagamento.');return}
     const changes=[],remainder=[];
     for(const tr of $('#batchSettleRows tr[data-batch-id]')){
       const e=entries.find(x=>String(x.id)===tr.dataset.batchId);
