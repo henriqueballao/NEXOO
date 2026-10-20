@@ -3711,12 +3711,12 @@ function captureUIState(){
     batchSettleIds=chosen.map(e=>String(e.id));
     $('#batchSettleDate').value=new Date().toLocaleDateString('en-CA');
     $('#batchSettleRows').innerHTML=chosen.map(e=>'<tr data-batch-id="'+esc(String(e.id))+'"><td>'+esc(e.descricao)+'</td><td>'+br(e.data_vencimento)+'</td><td class="num">'+money(e.valor)+'</td><td><input class="batch-settle-value" type="text" inputmode="decimal" aria-label="Valor a pagar: '+esc(e.descricao)+'" value="'+formatBRMoney(e.valor)+'" style="width:125px;max-width:100%"/></td><td class="num batch-remainder">'+money(0)+'</td></tr>').join('');
-    $('.batch-settle-value').forEach(el=>el.addEventListener('input',updateBatchSettleTotals));
+    $$('.batch-settle-value').forEach(el=>el.addEventListener('input',updateBatchSettleTotals));
     updateBatchSettleTotals();$('#batchSettleModal').classList.add('open');
   }
   function updateBatchSettleTotals(){
     let original=0,paid=0,remaining=0,invalid=false;
-    $('#batchSettleRows tr[data-batch-id]').forEach(tr=>{
+    $$('#batchSettleRows tr[data-batch-id]').forEach(tr=>{
       const e=entries.find(x=>String(x.id)===tr.dataset.batchId);if(!e)return;
       const raw=tr.querySelector('input').value.trim(),v=val(raw),limit=Math.round(e.valor*100),cents=Math.round(v*100);
       if(!raw||!Number.isFinite(v)||cents>limit||cents<0)invalid=true;
@@ -3731,7 +3731,7 @@ function captureUIState(){
     const date=$('#batchSettleDate').value;
     if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){alert('Informe a data de pagamento.');return}
     const changes=[],remainder=[];
-    for(const tr of $('#batchSettleRows tr[data-batch-id]')){
+    for(const tr of $$('#batchSettleRows tr[data-batch-id]')){
       const e=entries.find(x=>String(x.id)===tr.dataset.batchId);
       if(!e||e.tipo!=='DESPESA'||e.data_pagamento){alert('Seleção desatualizada. Reabra o lote.');return}
       const raw=tr.querySelector('input').value.trim(),amount=Math.round(val(raw)*100),original=Math.round(e.valor*100);
