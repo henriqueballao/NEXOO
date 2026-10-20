@@ -2962,6 +2962,7 @@ input,select,textarea,button{max-width:100%}
   <span class="bulk-count" id="entryBulkCount">0 selecionados</span>
   <button class="btn" id="bulkDueBtn" type="button" disabled>Alterar vencimento</button>
   <button class="btn" id="bulkPayBtn" type="button" disabled>Alterar pagamento</button>
+  <button class="btn primary" id="batchSettleBtn" type="button" disabled>Pagamento em lote</button>
   <button class="btn" id="bulkClearSelection" type="button" disabled>Limpar seleção</button>
 </div>
 <div class="panel-body"><div style="overflow:auto"><table><thead><tr><th class="entry-select-col"><input aria-label="Selecionar todos os lançamentos visíveis" id="entrySelectAll" type="checkbox"/></th><th>Vencimento</th><th>Descrição</th><th>Centro de custo</th><th>Favorecido</th><th>Tipo</th><th class="num">Valor</th><th>Status</th><th>Pagamento</th><th></th></tr><tr class="table-filter-row"><th class="entry-select-col"></th><th><input aria-label="Filtrar vencimento exato" id="efDue" type="date"/></th><th><input id="efDesc" placeholder="Filtrar..."/></th><th><select id="efCost"><option value="">Todos</option></select></th><th><select id="efFav"><option value="">Todos</option></select></th><th><select id="efType"><option value="">Todos</option><option value="RECEITA">Receita</option><option value="DESPESA">Despesa</option></select></th><th><div class="value-range"><input id="efMin" placeholder="mín" step="0.01" type="number"/><input id="efMax" placeholder="máx" step="0.01" type="number"/></div></th><th><select id="efStatus"><option value="">Todos</option><option value="REALIZADO">Realizado</option><option value="VENCIDO">Vencido</option><option value="PREVISTO">Previsto</option></select></th><th><input aria-label="Filtrar pagamento exato" id="efPay" type="date"/></th><th></th></tr></thead><tbody id="entriesBody"></tbody></table></div></div></div>
@@ -3046,6 +3047,7 @@ input,select,textarea,button{max-width:100%}
   <div class="bulk-modal-note" id="bulkPayNote"></div>
   <div class="modal-foot"><button class="btn" id="cancelBulkPay" type="button">Cancelar</button><button class="btn primary" id="applyBulkPay" type="button">Aplicar</button></div>
 </div></div>
+<div class="modal-back" id="batchSettleModal"><div class="modal" style="width:min(900px,96vw);max-height:90vh;overflow:auto"><h3>Pagamento em lote</h3><p class="bulk-modal-note" id="batchSettleSummary"></p><label>Data do pagamento<input id="batchSettleDate" type="date"/></label><div style="overflow:auto;max-height:55vh"><table style="width:100%"><thead><tr><th>Descrição</th><th>Vencimento</th><th class="num">Em aberto</th><th class="num">Pagar agora (R$)</th><th class="num">Saldo pendente</th></tr></thead><tbody id="batchSettleRows"></tbody></table></div><div class="bulk-modal-note" id="batchSettleTotals"></div><div class="modal-foot"><button class="btn" id="cancelBatchSettle" type="button">Cancelar</button><button class="btn primary" id="confirmBatchSettle" type="button">Confirmar baixa</button></div></div></div>
 <div class="modal-back" id="dayModal"><div class="modal"><h3 id="dayModalTitle">Movimentos do dia</h3><div class="day-detail" id="dayModalBody"></div><div class="modal-foot"><button class="btn" id="closeDayModal">Fechar</button></div></div></div>
 <div class="modal-back" id="monthlyModal"><div class="modal" style="width:min(680px,100%)"><h3 id="monthlyModalTitle">Movimentos do mês</h3><div class="monthly-detail-list" id="monthlyModalBody"></div><div class="modal-foot"><button class="btn" id="closeMonthlyModal">Fechar</button></div></div></div>
 <div class="modal-back" id="streamEditModal"><div class="modal"><h3>Editar assinatura</h3><div class="form-grid">
@@ -3627,7 +3629,7 @@ function captureUIState(){
   function updateEntryBulkControls(){
     const n=bulkSelectedEntries.size;
     const count=$('#entryBulkCount');if(count)count.textContent=`${n} selecionado${n===1?'':'s'}`;
-    ['bulkDueBtn','bulkPayBtn','bulkClearSelection'].forEach(id=>{const el=$('#'+id);if(el)el.disabled=n===0});
+    ['bulkDueBtn','bulkPayBtn','batchSettleBtn','bulkClearSelection'].forEach(id=>{const el=$('#'+id);if(el)el.disabled=n===0});
     const all=$('#entrySelectAll');
     if(all){
       const visible=bulkVisibleEntryIds.filter(id=>entries.some(e=>String(e.id)===id));
@@ -3700,6 +3702,50 @@ function captureUIState(){
     save();bulkSelectedEntries.clear();$('#bulkPayModal').classList.remove('open');render();
   }
 
+  /* Pagamento parcial: mantém a obrigação íntegra em duas parcelas rastreáveis. */
+  let batchSettleIds=[];
+  function openBatchSettle(){
+    const chosen=selectedBulkEntries();
+    if(!chosen.length)return;
+    if(chosen.some(e=>e.tipo!=='DESPESA'||e.data_pagamento)){alert('Selecione somente despesas ainda não pagas.');return}
+    batchSettleIds=chosen.map(e=>String(e.id));
+    $('#batchSettleDate').value=new Date().toLocaleDateString('en-CA');
+    $('#batchSettleRows').innerHTML=chosen.map(e=>'<tr data-batch-id="'+esc(String(e.id))+'"><td>'+esc(e.descricao)+'</td><td>'+br(e.data_vencimento)+'</td><td class="num">'+money(e.valor)+'</td><td><input class="batch-settle-value" type="text" inputmode="decimal" aria-label="Valor a pagar: '+esc(e.descricao)+'" value="'+formatBRMoney(e.valor)+'" style="width:125px;max-width:100%"/></td><td class="num batch-remainder">'+money(0)+'</td></tr>').join('');
+    $('.batch-settle-value').forEach(el=>el.addEventListener('input',updateBatchSettleTotals));
+    updateBatchSettleTotals();$('#batchSettleModal').classList.add('open');
+  }
+  function updateBatchSettleTotals(){
+    let original=0,paid=0,remaining=0,invalid=false;
+    $('#batchSettleRows tr[data-batch-id]').forEach(tr=>{
+      const e=entries.find(x=>String(x.id)===tr.dataset.batchId);if(!e)return;
+      const raw=tr.querySelector('input').value.trim(),v=val(raw),limit=Math.round(e.valor*100),cents=Math.round(v*100);
+      if(!raw||!Number.isFinite(v)||cents>limit||cents<0)invalid=true;
+      original+=limit;paid+=cents;remaining+=Math.max(0,limit-cents);
+      tr.querySelector('.batch-remainder').textContent=money(Math.max(0,limit-cents)/100);
+    });
+    $('#batchSettleSummary').textContent=batchSettleIds.length+' despesas selecionadas';
+    $('#batchSettleTotals').textContent='Total original: '+money(original/100)+' | Pagar agora: '+money(paid/100)+' | Saldo pendente: '+money(remaining/100)+(invalid?' | Corrija os valores inválidos.':'');
+    $('#confirmBatchSettle').disabled=invalid||paid===0;
+  }
+  function confirmBatchSettle(){
+    const date=$('#batchSettleDate').value;
+    if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)){alert('Informe a data de pagamento.');return}
+    const changes=[],remainder=[];
+    for(const tr of $('#batchSettleRows tr[data-batch-id]')){
+      const e=entries.find(x=>String(x.id)===tr.dataset.batchId);
+      if(!e||e.tipo!=='DESPESA'||e.data_pagamento){alert('Seleção desatualizada. Reabra o lote.');return}
+      const raw=tr.querySelector('input').value.trim(),amount=Math.round(val(raw)*100),original=Math.round(e.valor*100);
+      if(!raw||!Number.isFinite(amount)||amount<0||amount>original){alert('Valor inválido em '+e.descricao);return}
+      if(!amount)continue;
+      changes.push({e,amount:amount/100});
+      if(amount<original)remainder.push({...e,id:uid(),valor:(original-amount)/100,data_pagamento:'',pagamento_parcial_origem:String(e.id)});
+    }
+    if(!changes.length){alert('Informe ao menos um pagamento.');return}
+    const total=changes.reduce((a,x)=>a+x.amount,0);
+    if(!confirm('Confirmar baixa de '+changes.length+' despesas em '+br(date)+'?\\nTotal: '+money(total)+'\\nDiferenças permanecerão em aberto.'))return;
+    changes.forEach(({e,amount})=>{e.valor=amount;e.data_pagamento=date});
+    entries.push(...remainder);save();bulkSelectedEntries.clear();batchSettleIds=[];$('#batchSettleModal').classList.remove('open');render();
+  }
   function dailyDate(e,mode){if(mode==='actual')return e.data_pagamento;if(mode==='consolidated')return e.data_pagamento||e.data_vencimento;return e.data_vencimento}
   function dailyModeLabel(mode){return mode==='actual'?'Realizado':mode==='consolidated'?'Consolidado':'Previsto'}
   function renderDaily(){const mode=$('#dailyMode').value,y=Number($('#dailyYear').value)||selectedYear,m=Number($('#dailyMonth').value), days=new Date(y,m,0).getDate(); const openingBalance=entries.reduce((acc,e)=>{const date=dailyDate(e,mode);if(!date||yearOf(date)!==y)return acc;if(mode==='actual'&&!e.data_pagamento)return acc;const em=Number(date.slice(5,7));if(em>=m)return acc;return acc+(e.tipo==='RECEITA'?e.valor:-e.valor)},0); let cum=openingBalance, rows=[],monthInc=0,monthOut=0,monthIncCount=0,monthOutCount=0; for(let d=1;d<=days;d++){const mov=[]; let inc=0,out=0; entries.forEach(e=>{const date=dailyDate(e,mode);if(!date||yearOf(date)!==y||Number(date.slice(5,7))!==m||Number(date.slice(8,10))!==d)return;if(mode==='actual'&&!e.data_pagamento)return;mov.push(e);if(e.tipo==='RECEITA'){inc+=e.valor;monthIncCount++}else{out+=e.valor;monthOutCount++}});monthInc+=inc;monthOut+=out;const bal=inc-out;cum+=bal; const top=mov.slice().sort((a,b)=>b.valor-a.valor).slice(0,8); const moveHtml=top.length?`<div class="daily-moves">${top.map(e=>{const done=!!e.data_pagamento,state=done?(e.tipo==='RECEITA'?'RECEBIDO':'PAGO'):'ABERTO';return `<div class="daily-move"><span class="desc">${esc(e.descricao||e.favorecido)}</span><span class="daily-state ${done?'done':'open'}">${state}</span><span class="val ${e.tipo==='DESPESA'?'negative-value':''}">${e.tipo==='RECEITA'?'+':'−'} ${money(e.valor)}</span></div>`}).join('')}${mov.length>8?`<div class="daily-more">+ ${mov.length-8} lançamento${mov.length-8>1?'s':''}</div>`:''}</div>`:'<span class="daily-none">—</span>'; const dow=new Date(y,m-1,d).getDay(), weekend=dow===0||dow===6, today=y===now.getFullYear()&&m===now.getMonth()+1&&d===now.getDate(); rows.push(`<tr class="daily-row${weekend?' weekend':''}${today?' today':''}" data-day="${d}"><td>${String(d).padStart(2,'0')}</td><td class="num">${money(inc)}</td><td class="num">${money(out)}</td><td class="num ${bal<0?'negative-value':''}">${money(bal)}</td><td class="num ${cum<0?'negative-value':''}">${money(cum)}</td><td>${moveHtml}</td></tr>`)} $('#dailyBody').innerHTML=rows.join(''); const monthResult=monthInc-monthOut,avgDaily=monthOut/Math.max(1,days);
@@ -4410,6 +4456,7 @@ function captureUIState(){
   $('#entrySelectAll').onchange=()=>{const checked=$('#entrySelectAll').checked;bulkVisibleEntryIds.forEach(id=>checked?bulkSelectedEntries.add(id):bulkSelectedEntries.delete(id));renderEntries()};
   $('#bulkClearSelection').onclick=()=>{bulkSelectedEntries.clear();renderEntries()};
   $('#bulkDueBtn').onclick=openBulkDue; $('#bulkPayBtn').onclick=openBulkPay;
+  $('#batchSettleBtn').onclick=openBatchSettle;$('#cancelBatchSettle').onclick=()=>$('#batchSettleModal').classList.remove('open');$('#confirmBatchSettle').onclick=confirmBatchSettle;
   $('#cancelBulkDue').onclick=()=>$('#bulkDueModal').classList.remove('open'); $('#applyBulkDue').onclick=applyBulkDue;
   $('#cancelBulkPay').onclick=()=>$('#bulkPayModal').classList.remove('open'); $('#applyBulkPay').onclick=applyBulkPay;
   $('#dailyYear').onchange=renderDaily;$('#dailyMode').onchange=renderDaily;$('#dailyMonth').onchange=renderDaily;$('#overviewYear').onchange=()=>{
